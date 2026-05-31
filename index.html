@@ -4,7 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Taskmaster Pro 5.1 | ИД + Планировщик</title>
-  
+
+  <!-- Ускорение подключения к Firebase и Google -->
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
+
   <!-- Стили -->
   <link rel="stylesheet" href="./css/styles.css">
   
@@ -12,6 +17,15 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
+
+  <!-- Экран загрузки (показывается пока Firebase инициализируется) -->
+  <div id="loading-screen">
+    <div class="loader-wrap">
+      <div class="loader-spinner"></div>
+      <div style="margin-top: 16px; font-weight: 600; color: var(--text-secondary);">Загрузка приложения...</div>
+    </div>
+  </div>
+
   <header id="main-header" style="display: none;">
     <div class="logo">📋 Taskmaster Pro</div>
     <div class="tabs" id="nav-tabs"></div>
@@ -26,16 +40,17 @@
     </div>
   </header>
   
-  <div id="login-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg);">
-    <div class="card" style="width: 350px; display: flex; flex-direction: column; gap: 16px; align-items: center;">
-      <h2 style="text-align: center;">Taskmaster Pro<br><small style="font-size: 0.9rem; color: var(--text-secondary);">Управление проектами</small></h2>
+  <div id="login-screen" style="display: none;">
+    <div class="card" style="width: 360px; display: flex; flex-direction: column; gap: 16px; align-items: center;">
+      <div style="font-size: 2.5rem;">📋</div>
+      <h2 style="text-align: center; margin: 0;">Taskmaster Pro<br><small style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 400;">Управление проектами</small></h2>
       
-      <button id="btn-google-login" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 1rem; padding: 12px;">
+      <button id="btn-google-login" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 1rem; padding: 14px; border-radius: 10px;">
         Войти через Google
       </button>
       
-      <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 8px;">
-        Если вы Администратор, авторизуйтесь и поменяйте свою роль в базе данных. Если вы Инженер, запросите ссылку-приглашение у Администратора.
+      <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 4px; line-height: 1.5;">
+        Если вы Инженер — запросите ссылку-приглашение у Администратора.
       </p>
     </div>
   </div>
@@ -44,9 +59,11 @@
     <div class="overlay" id="overlay"></div>
     <div class="tab-content active" id="tab-tasks"></div>
     <div class="tab-content" id="tab-matrix"></div>
+    <div class="tab-content" id="tab-incomplete"></div>
     <div class="tab-content" id="tab-dict"></div>
     <div class="tab-content" id="tab-builder"></div>
     <div class="tab-content" id="tab-registry"></div>
+    <div class="tab-content" id="tab-users"></div>
     <aside class="drawer" id="drawer"></aside>
     <div class="toast-container" id="toast-container"></div>
     <div id="modal-container"></div>

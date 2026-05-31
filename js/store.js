@@ -15,24 +15,25 @@ class Store {
       objects: [],
       tasks: {},
       tasksTodo: [],
-      activityLog: [] // Журнал событий
+      activityLog: [],       // Общий журнал (для Админа)
+      userNotifications: {}  // { userId: [ { id, message, date, read } ] } — для инженеров
     };
     this.listeners = new Map();
     this.unsubscribeStore = null;
-    this.lastLogCount = 0; // Для бейджика непрочитанных
+    this.lastLogCount = 0;
+    this.lastUserNotifCount = 0;
   }
 
   initRealtime() {
     if (!db) return;
-
     const docRef = doc(db, "appData", "mainStore");
     
     this.unsubscribeStore = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (!data.activityLog) data.activityLog = [];
+        if (!data.userNotifications) data.userNotifications = {};
         this.db = data;
-        
         this.checkNotifications();
         this.emitAll();
       } else {
@@ -45,49 +46,81 @@ class Store {
   }
 
   checkNotifications() {
-    if (Auth.userRole !== 'admin') return;
-    
-    // Обновляем счетчик непрочитанных в шапке
-    const badge = document.getElementById('notif-badge');
-    if (badge) {
-      const newCount = this.db.activityLog.length;
-      if (newCount > this.lastLogCount && this.lastLogCount !== 0) {
-        // Проиграть звук или просто показать всплывашку для самого нового события
-        const latest = this.db.activityLog[this.db.activityLog.length - 1];
-        if (latest.userId !== Auth.currentUser.uid) {
-          toast(`Новое событие: ${latest.action}`, 'info');
+    // Для Админа — счётчик общего лога
+    if (Auth.userRole === 'admin') {
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        const newCount = this.db.activityLog.length;
+        if (newCount > this.lastLogCount && this.lastLogCount !== 0) {
+          const latest = this.db.activityLog[this.db.activityLog.length - 1];
+          if (latest && latest.userId !== Auth.currentUser.uid) {
+            toast(`Событие: ${latest.action} — "${latest.taskTitle}"`, 'info');
+          }
         }
-      }
-      this.lastLogCount = newCount;
-      
-      if (newCount > 0) {
-        badge.style.display = 'block';
+        this.lastLogCount = newCount;
+        badge.style.display = newCount > 0 ? 'block' : 'none';
         badge.textContent = newCount > 99 ? '99+' : newCount;
-      } else {
-        badge.style.display = 'none';
+      }
+      return;
+    }
+
+    // Для Инженера — счётчик личных уведомлений
+    if (Auth.userRole === 'engineer' && Auth.currentUser) {
+      const uid = Auth.currentUser.uid;
+      const myNotifs = (this.db.userNotifications[uid] || []).filter(n => !n.read);
+      const newCount = myNotifs.length;
+      
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        if (newCount > this.lastUserNotifCount && this.lastUserNotifCount !== 0) {
+          toast('Новое уведомление от Администратора', 'info');
+        }
+        this.lastUserNotifCount = newCount;
+        badge.style.display = newCount > 0 ? 'block' : 'none';
+        badge.textContent = newCount > 99 ? '99+' : newCount;
       }
     }
   }
 
+  // Лог для Админа (общий журнал — когда инженер делает действия)
   logActivity(action, taskTitle) {
     if (!this.db.activityLog) this.db.activityLog = [];
-    
     const userName = Auth.currentUser.displayName || Auth.currentUser.email.split('@')[0];
-    
     this.db.activityLog.push({
       id: Date.now().toString(),
       userId: Auth.currentUser.uid,
-      userName: userName,
-      action: action,
-      taskTitle: taskTitle,
+      userName,
+      action,
+      taskTitle,
       date: new Date().toISOString()
     });
-    
-    // Ограничиваем лог последними 100 событиями
-    if (this.db.activityLog.length > 100) {
-      this.db.activityLog.shift();
+    if (this.db.activityLog.length > 100) this.db.activityLog.shift();
+    this.saveToFirebase();
+  }
+
+  // Направленное уведомление конкретному инженеру (от Админа)
+  notifyUser(userId, message, taskTitle) {
+    if (!this.db.userNotifications) this.db.userNotifications = {};
+    if (!this.db.userNotifications[userId]) this.db.userNotifications[userId] = [];
+    this.db.userNotifications[userId].push({
+      id: Date.now().toString(),
+      message,
+      taskTitle,
+      date: new Date().toISOString(),
+      read: false
+    });
+    // Ограничиваем 50 уведомлениями
+    if (this.db.userNotifications[userId].length > 50) {
+      this.db.userNotifications[userId].shift();
     }
-    
+    this.saveToFirebase();
+  }
+
+  // Пометить все уведомления пользователя как прочитанные
+  markNotificationsRead(userId) {
+    if (!this.db.userNotifications || !this.db.userNotifications[userId]) return;
+    this.db.userNotifications[userId].forEach(n => n.read = true);
+    this.lastUserNotifCount = 0;
     this.saveToFirebase();
   }
 
@@ -109,101 +142,58 @@ class Store {
 
   // --- Справочники ---
   getDict(cat) { return this.db.dict[cat] || []; }
-  setDict(cat, arr) { 
-    this.db.dict[cat] = arr; 
-    this.saveToFirebase(); 
-  }
+  setDict(cat, arr) { this.db.dict[cat] = arr; this.saveToFirebase(); }
 
-  // --- Объекты (Конфигурации) ---
+  // --- Объекты ---
   getObjects() { return this.db.objects || []; }
-  addObject(obj) { 
-    if(!this.db.objects) this.db.objects = [];
-    this.db.objects.push(obj); 
-    this.saveToFirebase(); 
-  }
-  updateObject(id, data) { 
-    if(!this.db.objects) return;
-    const i = this.db.objects.findIndex(o => o.id === id); 
-    if (i !== -1) { 
-      this.db.objects[i] = data; 
-      this.saveToFirebase(); 
-    } 
-  }
-  deleteObject(id) { 
-    if(!this.db.objects) return;
-    this.db.objects = this.db.objects.filter(o => o.id !== id); 
-    this.saveToFirebase(); 
-  }
+  addObject(obj) { if(!this.db.objects) this.db.objects = []; this.db.objects.push(obj); this.saveToFirebase(); }
+  updateObject(id, data) { if(!this.db.objects) return; const i = this.db.objects.findIndex(o => o.id === id); if (i !== -1) { this.db.objects[i] = data; this.saveToFirebase(); } }
+  deleteObject(id) { if(!this.db.objects) return; this.db.objects = this.db.objects.filter(o => o.id !== id); this.saveToFirebase(); }
 
   // --- Матрица задач ---
-  getTask(key) { 
+  getTask(key) {
     if(!this.db.tasks) this.db.tasks = {};
-    return this.db.tasks[key] || { 
-      status: 's-none', 
-      text: 'Не начато', 
-      aptsDone: [], 
-      l1: '', l2: '', l3: '', l4: '', lMain: '', 
-      remarks: [] 
-    }; 
+    return this.db.tasks[key] || { status: 's-none', text: 'Не начато', aptsDone: [], l1: '', l2: '', l3: '', l4: '', lMain: '', remarks: [] };
   }
-  setTask(key, data) {
-    if(!this.db.tasks) this.db.tasks = {};
-    this.db.tasks[key] = data; 
-    this.saveToFirebase(); 
-  }
+  setTask(key, data) { if(!this.db.tasks) this.db.tasks = {}; this.db.tasks[key] = data; this.saveToFirebase(); }
+  undoLastTask() { toast("Отмена отключена в онлайн режиме", "warning"); return false; }
 
-  undoLastTask() { 
-    toast("Отмена отключена в онлайн режиме", "warning");
-    return false;
+  // --- Пользователи ---
+  async deleteUserProfile(userId) {
+    if (!db) return;
+    try {
+      const { doc: fsDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
+      await deleteDoc(fsDoc(db, "users", userId));
+      // Также очищаем его уведомления
+      if (this.db.userNotifications && this.db.userNotifications[userId]) {
+        delete this.db.userNotifications[userId];
+        this.saveToFirebase();
+      }
+      return true;
+    } catch(e) {
+      console.error(e);
+      return false;
+    }
   }
 
   // --- Ежедневные задачи ---
-  getTasksTodo() { 
+  getTasksTodo() {
     if(!this.db.tasksTodo) this.db.tasksTodo = [];
-    
     if (Auth.userRole === 'engineer') {
-      // Инженер видит свои личные задачи И задачи, назначенные ему админом
       return this.db.tasksTodo.filter(t => t.authorId === Auth.currentUser.uid || t.assigneeId === Auth.currentUser.uid);
     } else if (Auth.userRole === 'admin') {
-      // Админ видит задачи, которые он сам создал. Личные задачи инженеров (где автор - инженер) он не видит.
       return this.db.tasksTodo.filter(t => t.authorId === Auth.currentUser.uid);
     }
-    
-    return this.db.tasksTodo; 
-  }
-  
-  addTaskTodo(task) { 
-    if(!this.db.tasksTodo) this.db.tasksTodo = [];
-    this.db.tasksTodo.push(task); 
-    this.saveToFirebase(); 
-  }
-  
-  updateTaskTodo(id, data) { 
-    if(!this.db.tasksTodo) return;
-    const idx = this.db.tasksTodo.findIndex(t => t.id === id); 
-    if (idx !== -1) { 
-      this.db.tasksTodo[idx] = data; 
-      this.saveToFirebase(); 
-    } 
-  }
-  
-  deleteTaskTodo(id) { 
-    if(!this.db.tasksTodo) return;
-    this.db.tasksTodo = this.db.tasksTodo.filter(t => t.id !== id); 
-    this.saveToFirebase(); 
+    return this.db.tasksTodo;
   }
 
+  addTaskTodo(task) { if(!this.db.tasksTodo) this.db.tasksTodo = []; this.db.tasksTodo.push(task); this.saveToFirebase(); }
+  updateTaskTodo(id, data) { if(!this.db.tasksTodo) return; const idx = this.db.tasksTodo.findIndex(t => t.id === id); if (idx !== -1) { this.db.tasksTodo[idx] = data; this.saveToFirebase(); } }
+  deleteTaskTodo(id) { if(!this.db.tasksTodo) return; this.db.tasksTodo = this.db.tasksTodo.filter(t => t.id !== id); this.saveToFirebase(); }
+
   // --- События ---
-  on(event, cb) { 
-    if (!this.listeners.has(event)) this.listeners.set(event, []); 
-    this.listeners.get(event).push(cb); 
-  }
-  
-  emitAll() {
-    ['dict', 'objects', 'tasks', 'tasksTodo'].forEach(event => {
-      (this.listeners.get(event) || []).forEach(cb => cb()); 
-    });
-  }
+  on(event, cb) { if (!this.listeners.has(event)) this.listeners.set(event, []); this.listeners.get(event).push(cb); }
+  emitAll() { ['dict', 'objects', 'tasks', 'tasksTodo'].forEach(event => { (this.listeners.get(event) || []).forEach(cb => cb()); }); }
 }
 
 export const store = new Store();

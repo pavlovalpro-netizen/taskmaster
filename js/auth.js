@@ -12,9 +12,10 @@ export const Auth = {
   userRole: null, // 'admin' или 'engineer'
   usersList: [], // Кэш списка инженеров для админа
 
-  init(onLoginCallback, onLogoutCallback) {
+  init(onLoginCallback, onLogoutCallback, onAuthChecked) {
     if (!auth) {
       toast('Firebase не настроен! Проверьте firebase-config.js', 'error');
+      if (onAuthChecked) onAuthChecked();
       return;
     }
 
@@ -27,6 +28,7 @@ export const Auth = {
         this.currentUser = null;
         this.userRole = null;
         onLogoutCallback();
+        if (onAuthChecked) onAuthChecked();
       }
     });
 

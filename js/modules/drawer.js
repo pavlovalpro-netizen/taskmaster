@@ -1,6 +1,24 @@
 import { store } from '../store.js';
 import { escapeHTML, linkify, CustomDialog } from '../utils.js';
-import { appModules } from '../app.js'; // Чтобы обновить матрицу после закрытия
+import { appModules } from '../app.js';
+
+// Вспомогательная функция: разбор строки диапазона этажей типа "2-5, 8, 12-17"
+function parseFloorRange(input) {
+  const result = new Set();
+  const parts = input.split(',').map(s => s.trim()).filter(Boolean);
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [start, end] = part.split('-').map(Number);
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let i = Math.min(start, end); i <= Math.max(start, end); i++) result.add(i);
+      }
+    } else {
+      const n = Number(part);
+      if (!isNaN(n)) result.add(n);
+    }
+  }
+  return result;
+}
 
 export const Drawer = {
   current: null,
@@ -9,6 +27,11 @@ export const Drawer = {
     const key = `${configId}_${groupIdx}_${floor}_${workIdx}`;
     this.current = { key, work, floor, apts, groupIdx, workIdx, config };
     const t = store.getTask(key);
+    
+    // Строим диапазон этажей по умолчанию для группы
+    const group = config.groups[groupIdx];
+    const allFloors = group ? group.floors.map(f => f.num) : [];
+    const defaultRange = floor.toString();
     
     document.getElementById('drawer').innerHTML = `
     <div class="drawer-header">
@@ -46,8 +69,24 @@ export const Drawer = {
           ${this.renderChecklist(t)}
         </div>
         
-        <label><input type="checkbox" id="apply-group"> Применить ко всей группе</label>
-        <button class="btn btn-primary" id="btn-save-drawer" style="margin-top: 16px;">💾 Сохранить</button>
+        <!-- Гибкое применение этажей -->
+        <div class="drawer-section" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+          <label style="font-weight: 600; display: block; margin-bottom: 8px;">Применить к этажам:</label>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input id="apply-floors-input" class="input-ctrl" style="flex: 1; min-width: 150px;"
+              placeholder="напр. 2-5, 8, 12-17"
+              value="${escapeHTML(defaultRange)}"
+              title="Введите этажи: через запятую или диапазон через дефис. Пример: 2-5, 8, 12-17">
+            <button class="btn btn-sm" id="btn-fill-all-floors" title="Вставить все этажи группы">
+              Вся группа (${allFloors.length} эт.)
+            </button>
+          </div>
+          <div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-secondary);">
+            Этажи в группе: ${allFloors.join(', ')}
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" id="btn-save-drawer" style="margin-top: 16px; width: 100%;">💾 Сохранить</button>
       </div>
       
       <div id="drawer-remarks-content" class="hidden">
@@ -92,7 +131,6 @@ export const Drawer = {
     document.getElementById('drawer-close').onclick = () => this.close();
     document.getElementById('overlay').onclick = () => this.close();
     
-    // Вкладки
     document.querySelectorAll('.drawer-tab').forEach(t => t.onclick = (e) => {
       document.querySelectorAll('.drawer-tab').forEach(el => el.classList.remove('active'));
       e.target.classList.add('active');
@@ -102,7 +140,6 @@ export const Drawer = {
     });
     
     document.getElementById('btn-save-drawer').onclick = () => this.save();
-    
     document.getElementById('btn-add-remark')?.addEventListener('click', () => this.addRemark());
     
     document.getElementById('lMain').oninput = (e) => this.updateLinkPreview(e.target, 'lMain-preview');
@@ -110,7 +147,6 @@ export const Drawer = {
       input.oninput = (e) => this.updateLinkPreview(e.target, e.target.dataset.preview);
     });
     
-    // Выбрать все квартиры
     const selectAllCheckbox = document.getElementById('apt-select-all');
     if (selectAllCheckbox) {
       selectAllCheckbox.onchange = () => {
@@ -118,21 +154,43 @@ export const Drawer = {
       };
     }
 
-    // Зависимости чекбоксов (делегирование)
+    // Кнопка "Вся группа" заполняет поле ввода всеми этажами
+    document.getElementById('btn-fill-all-floors')?.addEventListener('click', () => {
+      const group = this.current.config.groups[this.current.groupIdx];
+      if (group) {
+        const floors = group.floors.map(f => f.num);
+        // Строим компактный диапазон
+        document.getElementById('apply-floors-input').value = this.toRangeString(floors);
+      }
+    });
+
     document.getElementById('drawer-main-content').addEventListener('change', (e) => {
       if (e.target.type === 'checkbox' && e.target.id && e.target.id.startsWith('c')) {
         this.handleCheckboxChange(e.target.id);
       }
     });
 
-    // Изменение статуса замечания (делегирование)
     document.getElementById('remark-list').addEventListener('change', (e) => {
       if (e.target.classList.contains('remark-status-select')) {
         const id = parseInt(e.target.dataset.id);
-        const rem = this.current.remarks.find(x => x.id === id);
+        const rem = this.current.remarks?.find(x => x.id === id);
         if (rem) rem.status = e.target.value;
       }
     });
+  },
+
+  // Преобразование массива этажей в компактную строку типа "1-5, 8, 12-17"
+  toRangeString(floors) {
+    if (!floors || floors.length === 0) return '';
+    const sorted = [...floors].sort((a, b) => a - b);
+    const ranges = [];
+    let start = sorted[0], end = sorted[0];
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] === end + 1) { end = sorted[i]; }
+      else { ranges.push(start === end ? `${start}` : `${start}-${end}`); start = end = sorted[i]; }
+    }
+    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+    return ranges.join(', ');
   },
   
   handleCheckboxChange(id) {
@@ -149,8 +207,7 @@ export const Drawer = {
         if (childCb) {
           childCb.disabled = !checked;
           if (!checked) childCb.checked = false;
-          const div = childCb.closest('.checklist-item');
-          if (div) div.classList.toggle('locked', !checked);
+          childCb.closest('.checklist-item')?.classList.toggle('locked', !checked);
           this.updateDepsRecursive(child, checked);
         }
       }
@@ -165,9 +222,9 @@ export const Drawer = {
     }
   },
   
-  updateLinkPreviews() { 
+  updateLinkPreviews() {
     this.updateLinkPreview(document.getElementById('lMain'), 'lMain-preview');
-    ['l1','l2','l3','l4','l5','lFinal'].forEach(id => this.updateLinkPreview(document.getElementById(id), `${id}-preview`)); 
+    ['l1','l2','l3','l4','l5','lFinal'].forEach(id => this.updateLinkPreview(document.getElementById(id), `${id}-preview`));
   },
   
   save() {
@@ -192,30 +249,44 @@ export const Drawer = {
     else if (data.c2) { status = 's-dev'; text = 'АОСР готов'; }
     else if (data.c1) { status = 's-dev'; text = 'Схемы готовы'; }
     
-    if (aptsTotal > 0 && missing > 0 && status !== 's-done') {
-      text += ` (${missing} кв.)`;
-    }
-    
-    data.status = status; 
+    if (aptsTotal > 0 && missing > 0 && status !== 's-done') text += ` (${missing} кв.)`;
+    data.status = status;
     data.text = text;
     
-    if (document.getElementById('apply-group')?.checked) {
-      const g = this.current.config.groups[this.current.groupIdx];
-      g.floors.forEach(f => {
-        store.setTask(`${this.current.config.id}_${this.current.groupIdx}_${f.num}_${this.current.workIdx}`, { ...data, aptsDone: [...f.apts] });
-      });
+    // Применение к выбранным этажам
+    const floorInput = document.getElementById('apply-floors-input')?.value?.trim() || '';
+    if (floorInput) {
+      const selectedFloors = parseFloorRange(floorInput);
+      const group = this.current.config.groups[this.current.groupIdx];
+      
+      if (group && selectedFloors.size > 0) {
+        let savedCount = 0;
+        group.floors.forEach(f => {
+          if (selectedFloors.has(f.num)) {
+            store.setTask(`${this.current.config.id}_${this.current.groupIdx}_${f.num}_${this.current.workIdx}`, {
+              ...data,
+              aptsDone: data.aptsDone.length > 0 ? [...f.apts] : [] // Если выбраны квартиры — применяем все квартиры этажа
+            });
+            savedCount++;
+          }
+        });
+        // Показываем сколько этажей сохранено (задержанный тост)
+        import('../utils.js').then(({ toast }) => toast(`Сохранено на ${savedCount} этажах`, 'success'));
+      } else {
+        // Если ввод пустой или невалидный — сохраняем только текущий этаж
+        store.setTask(this.current.key, data);
+      }
     } else {
       store.setTask(this.current.key, data);
     }
     
-    this.close(); 
+    this.close();
     if (appModules.matrix) appModules.matrix.loadMatrix();
   },
   
   async addRemark() {
     const text = await CustomDialog.prompt('Текст замечания:');
     if (!text) return;
-    
     if (!this.current.remarks) this.current.remarks = [];
     this.current.remarks.push({ id: Date.now(), text, status: 'Открыто', date: new Date().toISOString() });
     document.getElementById('remark-list').innerHTML = this.renderRemarks(this.current.remarks);
