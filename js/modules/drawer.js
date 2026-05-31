@@ -254,7 +254,6 @@ export const Drawer = {
     data.text = text;
     
     // Применение к выбранным этажам
-    const floorInput = document.getElementById('apply-floors-input')?.value?.trim() || '';
     // Определяем, сохраняем ли на один этаж или на диапазон
     const floorInput = document.getElementById('apply-floors-input')?.value?.trim() || '';
     const selectedFloors = parseFloorRange(floorInput);
