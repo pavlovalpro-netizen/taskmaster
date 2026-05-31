@@ -255,28 +255,37 @@ export const Drawer = {
     
     // Применение к выбранным этажам
     const floorInput = document.getElementById('apply-floors-input')?.value?.trim() || '';
-    if (floorInput) {
-      const selectedFloors = parseFloorRange(floorInput);
-      const group = this.current.config.groups[this.current.groupIdx];
-      
-      if (group && selectedFloors.size > 0) {
-        let savedCount = 0;
-        group.floors.forEach(f => {
-          if (selectedFloors.has(f.num)) {
-            store.setTask(`${this.current.config.id}_${this.current.groupIdx}_${f.num}_${this.current.workIdx}`, {
-              ...data,
-              aptsDone: data.aptsDone.length > 0 ? [...f.apts] : [] // Если выбраны квартиры — применяем все квартиры этажа
-            });
-            savedCount++;
-          }
-        });
-        // Показываем сколько этажей сохранено (задержанный тост)
-        import('../utils.js').then(({ toast }) => toast(`Сохранено на ${savedCount} этажах`, 'success'));
-      } else {
-        // Если ввод пустой или невалидный — сохраняем только текущий этаж
-        store.setTask(this.current.key, data);
-      }
+    // Определяем, сохраняем ли на один этаж или на диапазон
+    const floorInput = document.getElementById('apply-floors-input')?.value?.trim() || '';
+    const selectedFloors = parseFloorRange(floorInput);
+    const group = this.current.config.groups[this.current.groupIdx];
+    const isSingleFloor = selectedFloors.size <= 1;
+
+    if (!isSingleFloor && group && selectedFloors.size > 0) {
+      // Применяем к нескольким этажам
+      // Для каждого этажа в диапазоне:
+      //   - чеклист и ссылки берём одинаковые
+      //   - aptsDone: если выбранные квартиры принадлежат этому этажу — ставим их,
+      //     иначе ставим ВСЕ квартиры этажа (логика «сделано для всего этажа»)
+      let savedCount = 0;
+      group.floors.forEach(f => {
+        if (selectedFloors.has(f.num)) {
+          // Считаем missing для конкретного этажа
+          const fAptsDone = [...f.apts]; // при применении к диапазону — весь этаж считается сделанным
+          const fMissing = 0;
+          const floorText = fMissing > 0 && data.status !== 's-done' 
+            ? data.text.replace(/ \(\d+ кв\.\)$/, '') + ` (${fMissing} кв.)`
+            : data.text.replace(/ \(\d+ кв\.\)$/, '');
+          store.setTask(
+            `${this.current.config.id}_${this.current.groupIdx}_${f.num}_${this.current.workIdx}`,
+            { ...data, text: floorText, aptsDone: fAptsDone }
+          );
+          savedCount++;
+        }
+      });
+      import('../utils.js').then(({ toast }) => toast(`Сохранено на ${savedCount} этажах`, 'success'));
     } else {
+      // Сохраняем только текущий этаж с точными отмеченными квартирами
       store.setTask(this.current.key, data);
     }
     

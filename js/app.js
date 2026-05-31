@@ -6,6 +6,7 @@ import { Builder } from './modules/builder.js';
 import { Registry } from './modules/registry.js';
 import { IncompleteModule } from './modules/incomplete.js';
 import { UsersModule } from './modules/users.js';
+import { ExtraWorksModule } from './modules/extra-works.js';
 import { store } from './store.js';
 import { Auth } from './auth.js';
 import { escapeHTML, toast, CustomDialog } from './utils.js';
@@ -17,7 +18,8 @@ export const appModules = {
   dict: Dict,
   builder: Builder,
   registry: Registry,
-  users: UsersModule
+  users: UsersModule,
+  'extra-works': ExtraWorksModule
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -59,13 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Строим nav с вкладкой Пользователи и Незавершённые
         UI.buildNav([
-          { id: 'tasks',      label: '📝 Задачи' },
-          { id: 'matrix',     label: '🏗 Матрица ИД' },
-          { id: 'incomplete', label: '🔍 Незавершённые' },
-          { id: 'dict',       label: '📚 Справочники' },
-          { id: 'builder',    label: '⚙️ Конфигуратор' },
-          { id: 'registry',   label: '📋 Реестр' },
-          { id: 'users',      label: '👥 Пользователи' }
+          { id: 'tasks',        label: '📝 Задачи' },
+          { id: 'matrix',       label: '🏗 Матрица ИД' },
+          { id: 'incomplete',   label: '🔍 Незавершённые' },
+          { id: 'extra-works',  label: '⚠️ Доп. работы' },
+          { id: 'dict',         label: '📚 Справочники' },
+          { id: 'builder',      label: '⚙️ Конфигуратор' },
+          { id: 'registry',     label: '📋 Реестр' },
+          { id: 'users',        label: '👥 Пользователи' }
         ], appModules);
       } else {
         // Инженер — ограниченные вкладки

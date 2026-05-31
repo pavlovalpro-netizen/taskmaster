@@ -16,7 +16,8 @@ class Store {
       tasks: {},
       tasksTodo: [],
       activityLog: [],       // Общий журнал (для Админа)
-      userNotifications: {}  // { userId: [ { id, message, date, read } ] } — для инженеров
+      userNotifications: {},  // { userId: [ { id, message, date, read } ] } — для инженеров
+      extraWorks: []          // Доп. работы / Рекламации
     };
     this.listeners = new Map();
     this.unsubscribeStore = null;
@@ -174,6 +175,26 @@ class Store {
       console.error(e);
       return false;
     }
+  }
+
+  // --- Доп. работы / Рекламации ---
+  getExtraWorks() { return this.db.extraWorks || []; }
+
+  saveExtraWork(work) {
+    if (!this.db.extraWorks) this.db.extraWorks = [];
+    const idx = this.db.extraWorks.findIndex(w => w.id === work.id);
+    if (idx !== -1) {
+      this.db.extraWorks[idx] = work; // Убновляем
+    } else {
+      this.db.extraWorks.push(work);  // Добавляем
+    }
+    this.saveToFirebase();
+  }
+
+  deleteExtraWork(id) {
+    if (!this.db.extraWorks) return;
+    this.db.extraWorks = this.db.extraWorks.filter(w => w.id !== id);
+    this.saveToFirebase();
   }
 
   // --- Ежедневные задачи ---
