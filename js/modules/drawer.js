@@ -31,11 +31,12 @@ export const Drawer = {
     // Строим диапазон этажей по умолчанию для группы
     const group = config.groups[groupIdx];
     const allFloors = group ? group.floors.map(f => f.num) : [];
-    const defaultRange = floor.toString();
+    const defaultRange = floorNum.toString();
     
     document.getElementById('drawer').innerHTML = `
     <div class="drawer-header">
       <div>
+        <h3>${escapeHTML(work)}</h3>
         <small>${escapeHTML(config.name)} — ${escapeHTML(config.house)} (${escapeHTML(config.section)}) | ${escapeHTML(String(floorNum))} этаж</small>
       </div>
       <button class="btn btn-icon" id="drawer-close">✕</button>
