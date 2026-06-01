@@ -6,10 +6,17 @@ export const Matrix = {
   activeConfigId: null,
   activeHouse: null,
   viewMode: 'detail',
+  filterStatus: '',
   
   render() {
+    const filterStatusOpts = [
+      'Не начато', 'Схемы готовы', 'АОСР готов', 'Документы собраны',
+      'У технадзора', 'Замечания', 'Исправлено', 'Подписано',
+      'Реестр подписан', 'В архиве'
+    ].map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
+
     document.getElementById('tab-matrix').innerHTML = `
-    <div class="card"><div class="form-row">
+    <div class="card"><div class="form-row" style="flex-wrap: wrap; align-items: end;">
       <div class="form-group">
         <label>Режим</label>
         <select id="matrix-view-mode" class="input-ctrl">
@@ -19,13 +26,20 @@ export const Matrix = {
       </div>
       <div class="form-group" id="matrix-selector-container"></div>
       <div class="form-group">
-        <label>Поиск</label>
+        <label>Поиск работы</label>
         <input id="matrix-search" class="input-ctrl" placeholder="Название работы...">
+      </div>
+      <div class="form-group">
+        <label>Статус</label>
+        <select id="matrix-filter-status" class="input-ctrl">
+          <option value="">Все статусы</option>
+          ${filterStatusOpts}
+        </select>
       </div>
       <button class="btn" id="btn-undo">↩ Отменить</button>
       <button class="btn btn-excel" id="btn-export">📥 Excel</button>
     </div></div>
-    <div class="matrix-scroll" id="matrix-table-container">Выберите объект</div>`;
+    <div class="matrix-scroll inverted-matrix" id="matrix-table-container">Выберите объект</div>`;
     
     this.attachEvents(); 
     this.updateSelectors();
@@ -44,20 +58,33 @@ export const Matrix = {
     
     document.getElementById('btn-export').onclick = () => this.exportExcel();
     
-    document.getElementById('matrix-search').oninput = () => this.filterColumns();
+    document.getElementById('matrix-search').oninput = () => this.filterRows();
+    document.getElementById('matrix-filter-status').onchange = (e) => {
+      this.filterStatus = e.target.value;
+      this.filterRows();
+    };
     
     // Delegation for table cells
     document.getElementById('matrix-table-container').addEventListener('click', (e) => {
       const td = e.target.closest('td[data-key]');
       if (td) {
-        const [configId, groupIdx, floorNum, workIdx] = td.dataset.key.split('::').map((v, i) => i ? parseInt(v) : v);
+        const [configId, groupIdx, floorNum, workIdxStr, workType] = td.dataset.key.split('::');
+        const workIdx = parseInt(workIdxStr);
         const cfg = store.getObjects().find(o => o.id === configId);
         if (!cfg) { 
           toast('Объект не найден','error'); 
           return; 
         }
-        const apts = cfg.groups[groupIdx]?.floors.find(f => f.num === floorNum)?.apts || [];
-        Drawer.open(configId, store.getDict('works')[workIdx], floorNum, apts, groupIdx, workIdx, cfg);
+        const apts = cfg.groups[parseInt(groupIdx)]?.floors.find(f => f.num === parseInt(floorNum))?.apts || [];
+        
+        // workIdx here maps to worksApts or worksMop. But in drawer it uses works.
+        // Let's pass the exact work name to drawer.
+        const workName = td.dataset.workname;
+        // Drawer needs workIdx relative to the combined works array for backwards compatibility.
+        const works = [...store.getDict('works'), ...store.getDict('worksMop')];
+        const combinedWorkIdx = works.indexOf(workName);
+
+        Drawer.open(configId, workName, parseInt(floorNum), apts, parseInt(groupIdx), combinedWorkIdx !== -1 ? combinedWorkIdx : workIdx, cfg);
       }
     });
   },
@@ -100,30 +127,56 @@ export const Matrix = {
       return; 
     }
     
-    const works = store.getDict('works');
-    let html = '<table><thead><tr><th>Структура</th>';
-    works.forEach((w, i) => html += `<th class="col-w-${i}">${escapeHTML(w)}</th>`);
-    html += '</tr></thead><tbody>';
+    const worksApts = store.getDict('works');
+    const worksMop = store.getDict('worksMop');
+    const worksAll = [...worksApts, ...worksMop];
+
+    // Build headers (Columns = Floors)
+    let groupHeaderHtml = '<tr><th class="sticky-col">Группа</th>';
+    let floorHeaderHtml = '<tr><th class="sticky-col">Вид работы</th>';
     
-    config.groups.forEach((g, gi) => {
-      html += `<tr style="background:var(--bg);font-weight:700;"><td colspan="${works.length + 1}">📁 ${escapeHTML(g.rawName)}</td></tr>`;
+    config.groups.forEach(g => {
+      groupHeaderHtml += `<th colspan="${g.floors.length}" style="text-align:center; border-left:2px solid var(--border);">${escapeHTML(g.rawName)}</th>`;
       g.floors.forEach(f => {
-        const label = f.num < 0 ? `Подвал ${f.num}` : `${f.num} эт.`;
-        html += `<tr><td>${label}</td>`;
-        works.forEach((w, wi) => {
-          const key = `${config.id}_${gi}_${f.num}_${wi}`;
-          const t = store.getTask(key);
-          const missing = (f.apts.length - (t.aptsDone?.length || 0));
-          const indicator = (f.apts.length > 0 && missing > 0) ? `<span class="apt-indicator">${missing}</span>` : '';
-          html += `<td class="col-w-${wi}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${wi}"><span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span></td>`;
-        });
-        html += '</tr>';
+        const label = f.num < 0 ? `П${f.num}` : `${f.num} эт.`;
+        floorHeaderHtml += `<th style="${f === g.floors[0] ? 'border-left:2px solid var(--border);' : ''}">${escapeHTML(label)}</th>`;
       });
     });
+    groupHeaderHtml += '</tr>';
+    floorHeaderHtml += '</tr>';
+
+    let html = `<table><thead>${groupHeaderHtml}${floorHeaderHtml}</thead><tbody>`;
+    
+    const buildRowsForWorks = (worksArray, worksLabel, combinedOffset) => {
+      if (worksArray.length === 0) return '';
+      let rowsHtml = `<tr class="work-group-header"><td colspan="${1 + config.groups.reduce((acc, g) => acc + g.floors.length, 0)}" style="background:var(--surface); font-weight:bold; color:var(--primary); padding-top:16px;">📁 ${worksLabel}</td></tr>`;
+      
+      worksArray.forEach((w, localIdx) => {
+        const globalIdx = combinedOffset + localIdx;
+        rowsHtml += `<tr class="matrix-row" data-work="${escapeHTML(w.toLowerCase())}">`;
+        rowsHtml += `<td class="sticky-col">${escapeHTML(w)}</td>`;
+        
+        config.groups.forEach((g, gi) => {
+          g.floors.forEach((f, fi) => {
+            const key = `${config.id}_${gi}_${f.num}_${globalIdx}`;
+            const t = store.getTask(key);
+            const missing = (f.apts.length - (t.aptsDone?.length || 0));
+            const indicator = (f.apts.length > 0 && missing > 0) ? `<span class="apt-indicator">${missing}</span>` : '';
+            const borderStyle = fi === 0 ? 'border-left:2px solid var(--border);' : '';
+            rowsHtml += `<td style="${borderStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${worksLabel}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}"><span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span></td>`;
+          });
+        });
+        rowsHtml += '</tr>';
+      });
+      return rowsHtml;
+    };
+
+    html += buildRowsForWorks(worksApts, 'Работы в квартирах', 0);
+    html += buildRowsForWorks(worksMop, 'Работы в МОП', worksApts.length);
     
     html += '</tbody></table>';
     container.innerHTML = html;
-    this.filterColumns();
+    this.filterRows();
   },
   
   loadHouseSummary() {
@@ -136,50 +189,102 @@ export const Matrix = {
       return; 
     }
     
-    const works = store.getDict('works');
-    let html = '<table><thead><tr><th>Секция</th>';
-    works.forEach(w => html += `<th>${escapeHTML(w)}</th>`);
+    const worksApts = store.getDict('works');
+    const worksMop = store.getDict('worksMop');
+    const worksAll = [...worksApts, ...worksMop];
+
+    let html = '<table><thead><tr><th class="sticky-col">Вид работы</th>';
+    configs.forEach(cfg => html += `<th>${escapeHTML(cfg.section)}</th>`);
     html += '</tr></thead><tbody>';
     
-    configs.forEach(cfg => {
-      html += `<tr><td>${escapeHTML(cfg.section)}</td>`;
-      works.forEach((w, wi) => {
-        let done = 0, total = 0;
-        cfg.groups.forEach(g => g.floors.forEach(f => {
-          const key = `${cfg.id}_${cfg.groups.indexOf(g)}_${f.num}_${wi}`;
-          if (store.getTask(key).status === 's-done') done++;
-          total++;
-        }));
-        html += `<td>${total ? Math.round(done / total * 100) : 0}%</td>`;
+    const buildSummaryRows = (worksArray, worksLabel, combinedOffset) => {
+      if (worksArray.length === 0) return '';
+      let rowsHtml = `<tr class="work-group-header"><td colspan="${1 + configs.length}" style="background:var(--surface); font-weight:bold; color:var(--primary); padding-top:16px;">📁 ${worksLabel}</td></tr>`;
+      
+      worksArray.forEach((w, localIdx) => {
+        const globalIdx = combinedOffset + localIdx;
+        rowsHtml += `<tr class="matrix-row" data-work="${escapeHTML(w.toLowerCase())}">`;
+        rowsHtml += `<td class="sticky-col">${escapeHTML(w)}</td>`;
+        
+        configs.forEach(cfg => {
+          let done = 0, total = 0;
+          cfg.groups.forEach(g => g.floors.forEach(f => {
+            const key = `${cfg.id}_${cfg.groups.indexOf(g)}_${f.num}_${globalIdx}`;
+            if (store.getTask(key).status === 's-done') done++;
+            total++;
+          }));
+          const pct = total ? Math.round((done / total) * 100) : 0;
+          const bg = pct === 100 ? 'var(--success)' : (pct > 0 ? 'var(--primary)' : 'var(--border)');
+          const color = pct > 0 ? '#fff' : 'inherit';
+          rowsHtml += `<td>
+            <div style="font-size:0.8rem; margin-bottom:4px;">${done} / ${total}</div>
+            <div style="height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
+              <div style="height:100%; width:${pct}%; background:${bg};"></div>
+            </div>
+          </td>`;
+        });
+        rowsHtml += '</tr>';
       });
-      html += '</tr>';
-    });
+      return rowsHtml;
+    };
+
+    html += buildSummaryRows(worksApts, 'Работы в квартирах', 0);
+    html += buildSummaryRows(worksMop, 'Работы в МОП', worksApts.length);
     
     html += '</tbody></table>';
     container.innerHTML = html;
+    this.filterRows();
   },
   
-  filterColumns() {
-    const query = document.getElementById('matrix-search')?.value.toLowerCase() || '';
-    const works = store.getDict('works');
-    document.querySelectorAll('[class*="col-w-"]').forEach(el => {
-      const cls = [...el.classList].find(c => c.startsWith('col-w-'));
-      if (cls) {
-        const index = parseInt(cls.split('-')[2]);
-        const workName = works[index]?.toLowerCase() || '';
-        el.style.display = (!query || workName.includes(query)) ? '' : 'none';
+  filterRows() {
+    const q = (document.getElementById('matrix-search')?.value || '').toLowerCase();
+    const filterStatus = this.filterStatus;
+
+    document.querySelectorAll('.matrix-row').forEach(tr => {
+      const workName = tr.dataset.work || '';
+      const matchSearch = !q || workName.includes(q);
+      
+      let matchStatus = true;
+      if (filterStatus && this.viewMode === 'detail') {
+        // Если выбран фильтр по статусу, проверяем есть ли в строке хотя бы одна ячейка с таким статусом
+        const cells = Array.from(tr.querySelectorAll('td[data-status]'));
+        matchStatus = cells.some(td => td.dataset.status === filterStatus);
+        
+        // Визуально глушим ячейки, которые не подпадают под фильтр
+        cells.forEach(td => {
+          if (td.dataset.status !== filterStatus) {
+            td.style.opacity = '0.2';
+          } else {
+            td.style.opacity = '1';
+          }
+        });
+      } else {
+        // Сброс прозрачности
+        tr.querySelectorAll('td[data-status]').forEach(td => td.style.opacity = '1');
       }
+
+      tr.style.display = (matchSearch && matchStatus) ? '' : 'none';
+    });
+
+    // Скрываем заголовки групп, если все их строки скрыты
+    document.querySelectorAll('.work-group-header').forEach(hdr => {
+      let next = hdr.nextElementSibling;
+      let hasVisibleRows = false;
+      while (next && next.classList.contains('matrix-row')) {
+        if (next.style.display !== 'none') {
+          hasVisibleRows = true;
+          break;
+        }
+        next = next.nextElementSibling;
+      }
+      hdr.style.display = hasVisibleRows ? '' : 'none';
     });
   },
   
   exportExcel() {
-    if (!window.XLSX) {
-      toast('Библиотека Excel не загружена', 'error');
-      return;
-    }
+    if (!window.XLSX) return toast('Библиотека Excel не загружена', 'error');
     const table = document.querySelector('#matrix-table-container table');
     if (!table) return toast('Нет данных для экспорта', 'error');
-    XLSX.writeFile(XLSX.utils.table_to_book(table, { sheet: "Матрица" }), "Сводка_ИД.xlsx");
-    toast('Успешно выгружено', 'success');
+    window.XLSX.writeFile(window.XLSX.utils.table_to_book(table, { sheet: "Матрица ИД" }), "Матрица_ИД.xlsx");
   }
 };

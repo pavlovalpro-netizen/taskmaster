@@ -34,6 +34,8 @@ export const ExtraWorksModule = {
   filterStatus: '',
   filterType: '',
   filterObject: '',
+  filterHouse: '',
+  filterSection: '',
   searchQuery: '',
 
   render() {
@@ -60,11 +62,17 @@ export const ExtraWorksModule = {
       <!-- Строка фильтров -->
       <div class="form-row" style="flex-wrap:wrap; gap:8px; background:var(--bg); padding:12px; border-radius:var(--radius); border:1px solid var(--border);">
         <input class="input-ctrl" id="ew-search" placeholder="Поиск..." value="${escapeHTML(this.searchQuery)}" style="flex:1; min-width:140px;">
-        <select class="input-ctrl" id="ew-filter-type" style="flex:1; min-width:160px;">
+        <select class="input-ctrl" id="ew-filter-type" style="flex:1; min-width:140px;">
           <option value="">Все типы</option>
           ${typeOpts}
         </select>
-        <select class="input-ctrl" id="ew-filter-status" style="flex:1; min-width:160px;">
+        <select class="input-ctrl" id="ew-filter-object" style="flex:1; min-width:140px;">
+          <option value="">Все объекты</option>
+          ${objects.map(o => `<option value="${escapeHTML(o.name)}">${escapeHTML(o.name)}</option>`).join('')}
+        </select>
+        <input class="input-ctrl" id="ew-filter-house" placeholder="Дом" value="${escapeHTML(this.filterHouse)}" style="width:80px;">
+        <input class="input-ctrl" id="ew-filter-section" placeholder="Секция" value="${escapeHTML(this.filterSection)}" style="width:80px;">
+        <select class="input-ctrl" id="ew-filter-status" style="flex:1; min-width:140px;">
           <option value="">Все статусы</option>
           ${filterStatusOpts}
         </select>
@@ -96,8 +104,11 @@ export const ExtraWorksModule = {
         (w.description || '').toLowerCase().includes(q) ||
         (w.apartments || '').toLowerCase().includes(q);
       const matchType   = !this.filterType   || w.type === this.filterType;
+      const matchObject = !this.filterObject || w.objectName === this.filterObject;
+      const matchHouse  = !this.filterHouse  || (w.house || '').toLowerCase().includes(this.filterHouse.toLowerCase());
+      const matchSection= !this.filterSection|| (w.section || '').toLowerCase().includes(this.filterSection.toLowerCase());
       const matchStatus = !this.filterStatus || computeStatus(w).text === this.filterStatus;
-      return matchSearch && matchType && matchStatus;
+      return matchSearch && matchType && matchObject && matchHouse && matchSection && matchStatus;
     });
   },
 
@@ -127,6 +138,7 @@ export const ExtraWorksModule = {
           <span>🏢 ${escapeHTML(w.objectName || '—')}</span>
           <span>🏠 ${escapeHTML(w.house || '—')}</span>
           <span>📐 ${escapeHTML(w.section || '—')}</span>
+          ${w.floors ? `<span>🏢 Эт: ${escapeHTML(w.floors)}</span>` : ''}
           <span>🏗 Кв: ${escapeHTML(w.apartments || '—')}</span>
           ${w.date ? `<span>📅 ${new Date(w.date).toLocaleDateString()}</span>` : ''}
         </div>
@@ -156,10 +168,31 @@ export const ExtraWorksModule = {
       this.attachCardEvents();
     };
 
+    document.getElementById('ew-filter-object').onchange = (e) => {
+      this.filterObject = e.target.value;
+      document.getElementById('ew-list').innerHTML = this.renderList();
+      this.attachCardEvents();
+    };
+
+    document.getElementById('ew-filter-house').oninput = (e) => {
+      this.filterHouse = e.target.value.trim();
+      document.getElementById('ew-list').innerHTML = this.renderList();
+      this.attachCardEvents();
+    };
+
+    document.getElementById('ew-filter-section').oninput = (e) => {
+      this.filterSection = e.target.value.trim();
+      document.getElementById('ew-list').innerHTML = this.renderList();
+      this.attachCardEvents();
+    };
+
     document.getElementById('btn-ew-reset').onclick = () => {
       this.searchQuery = '';
       this.filterType = '';
       this.filterStatus = '';
+      this.filterObject = '';
+      this.filterHouse = '';
+      this.filterSection = '';
       this.render();
     };
 
@@ -188,6 +221,7 @@ export const ExtraWorksModule = {
         objectName: '',
         house: '',
         section: '',
+        floors: '',
         apartments: '',
         date: new Date().toISOString().split('T')[0],
         description: '',
@@ -215,7 +249,9 @@ export const ExtraWorksModule = {
   },
 
   buildDrawerHTML(w) {
-    const works = store.getDict('works');
+    const worksApts = store.getDict('works');
+    const worksMop = store.getDict('worksMop');
+    const works = [...worksApts, ...worksMop];
     const objects = store.getObjects();
     const workOpts = [...works, ...WORK_TYPES.map(() => null)].filter((_, i) => i < works.length)
       .map(wk => `<option value="${escapeHTML(wk)}" ${w.workName === wk ? 'selected' : ''}>${escapeHTML(wk)}</option>`).join('');
@@ -250,7 +286,10 @@ export const ExtraWorksModule = {
         <h3>${w._isNew ? 'Новая запись' : escapeHTML(w.workName || 'Доп. работа')}</h3>
         <div style="margin-top:4px;"><span class="status-badge ${status}">${escapeHTML(text)}</span></div>
       </div>
-      <button class="btn btn-icon" id="ew-drawer-close">✕</button>
+      <div style="display:flex; gap:8px;">
+        ${!w._isNew ? `<button class="btn btn-icon" id="ew-btn-copy" title="Копировать запись">📋</button>` : ''}
+        <button class="btn btn-icon" id="ew-drawer-close">✕</button>
+      </div>
     </div>
     <div class="drawer-body">
       <div class="drawer-tabs">
@@ -285,9 +324,15 @@ export const ExtraWorksModule = {
             <input class="input-ctrl" id="ew-section" value="${escapeHTML(w.section || '')}" placeholder="Секция">
           </div>
         </div>
-        <div class="drawer-section">
-          <label>Квартиры (через запятую)</label>
-          <input class="input-ctrl" id="ew-apartments" value="${escapeHTML(w.apartments || '')}" placeholder="напр. 12, 15, 18-22">
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label>Этажи (через запятую/дефис)</label>
+            <input class="input-ctrl" id="ew-floors" value="${escapeHTML(w.floors || '')}" placeholder="напр. 2,3,5-7">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Квартиры (через запятую)</label>
+            <input class="input-ctrl" id="ew-apartments" value="${escapeHTML(w.apartments || '')}" placeholder="напр. 12, 15, 18-22">
+          </div>
         </div>
         <div class="drawer-section">
           <label>Дата</label>
@@ -306,6 +351,10 @@ export const ExtraWorksModule = {
       <!-- Чеклист -->
       <div id="ew-tab-checklist" class="hidden">
         <div class="drawer-section">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <label style="margin:0; font-weight:600;">📋 Документация</label>
+            <label style="font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="ew-chk-select-all" style="margin-right:4px;"> Выбрать всё</label>
+          </div>
           ${CHECKLIST_STEPS.map(s => renderStep(s, w)).join('')}
         </div>
       </div>
@@ -386,6 +435,38 @@ export const ExtraWorksModule = {
       }
     });
 
+    // Копирование
+    document.getElementById('ew-btn-copy')?.addEventListener('click', () => {
+      const copy = { ...work, id: Date.now().toString(), _isNew: true };
+      // Сбрасываем чеклист и ссылки
+      ['lMain','l1','l2','l3','l4','l5','lFinal'].forEach(id => copy[id] = '');
+      ['c1','c2','c3','c4','c5','c6','c7','c8','c9'].forEach(id => copy[id] = false);
+      copy.remarks = [];
+      this.closeDrawer();
+      this.openDrawer(null); // откроет шаблон
+      // хак, чтобы подменить шаблон на нашу копию
+      this._currentWork = copy;
+      document.getElementById('ew-drawer-content').innerHTML = this.buildDrawerHTML(copy);
+      this.attachDrawerEvents(copy);
+      toast('Запись скопирована, отредактируйте этажи/секции', 'info');
+    });
+
+    // Выбрать всё
+    const selectAllChk = document.getElementById('ew-chk-select-all');
+    if (selectAllChk) {
+      selectAllChk.onchange = () => {
+        const checked = selectAllChk.checked;
+        document.querySelectorAll('#ew-tab-checklist .ew-chk').forEach(c => {
+          c.checked = checked;
+          c.disabled = false;
+          c.closest('.checklist-item')?.classList.remove('locked');
+        });
+        if (!checked) {
+          this.updateChecklistDeps();
+        }
+      };
+    }
+
     // Сохранение
     document.getElementById('ew-btn-save').onclick = () => this.save(work);
   },
@@ -411,6 +492,7 @@ export const ExtraWorksModule = {
     work.objectName  = g('ew-objectName')?.value  || '';
     work.house       = g('ew-house')?.value       || '';
     work.section     = g('ew-section')?.value     || '';
+    work.floors      = g('ew-floors')?.value      || '';
     work.apartments  = g('ew-apartments')?.value  || '';
     work.date        = g('ew-date')?.value        || '';
     work.description = g('ew-description')?.value || '';

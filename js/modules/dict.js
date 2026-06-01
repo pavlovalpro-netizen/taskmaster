@@ -11,17 +11,18 @@ export const Dict = {
         <button class="btn btn-primary" id="btn-import">📤 Импорт Excel</button>
         <input type="file" id="excelInput" accept=".xlsx" hidden>
       </div>
-      <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px;">
+      <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:12px;">
         ${[
           {id: 'objects', label: 'Объекты'},
           {id: 'houses', label: 'Дома'},
           {id: 'sections', label: 'Секции'},
-          {id: 'works', label: 'Виды работ'}
+          {id: 'works', label: 'Работы (Квартиры)'},
+          {id: 'worksMop', label: 'Работы (МОП)'}
         ].map(cat => `
           <div>
             <strong>${escapeHTML(cat.label)}</strong>
             <textarea id="ta-${cat.id}" rows="6" class="input-ctrl" style="font-size:0.8rem; margin-top: 8px;"></textarea>
-            <button class="btn" data-cat="${cat.id}" data-action="add" style="margin-top: 4px;">+ Добавить новый</button>
+            <button class="btn" data-cat="${cat.id}" data-action="add" style="margin-top: 4px; font-size: 0.75rem;">+ Добавить</button>
           </div>
         `).join('')}
       </div>
@@ -32,7 +33,7 @@ export const Dict = {
     document.getElementById('btn-template').onclick = () => {
       if (!window.XLSX) return toast('Библиотека Excel не загружена', 'error');
       const wb = window.XLSX.utils.book_new();
-      ['objects','houses','sections','works'].forEach(s => window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.aoa_to_sheet([[s]]), s));
+      ['objects','houses','sections','works','worksMop'].forEach(s => window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.aoa_to_sheet([[s]]), s));
       window.XLSX.writeFile(wb, "Справочники_шаблон.xlsx");
     };
     
@@ -59,7 +60,7 @@ export const Dict = {
   },
   
   refreshLists() {
-    ['objects','houses','sections','works'].forEach(cat => {
+    ['objects','houses','sections','works','worksMop'].forEach(cat => {
       const el = document.getElementById(`ta-${cat}`);
       if(el) el.value = store.getDict(cat).join('\n');
     });
@@ -73,7 +74,7 @@ export const Dict = {
     reader.onload = (ev) => {
       try {
         const wb = window.XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-        ['objects','houses','sections','works'].forEach(sheet => {
+        ['objects','houses','sections','works','worksMop'].forEach(sheet => {
           if (wb.Sheets[sheet]) {
             const data = window.XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1 })
               .slice(1).map(r => r[0]).filter(v => v);

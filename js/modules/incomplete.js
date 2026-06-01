@@ -3,7 +3,6 @@ import { escapeHTML } from '../utils.js';
 
 export const IncompleteModule = {
   filters: { object: '', house: '', section: '', work: '', status: '' },
-  comments: {}, // Хранит локальные комментарии { key: text }
 
   render() {
     document.getElementById('tab-incomplete').innerHTML = `
@@ -27,6 +26,21 @@ export const IncompleteModule = {
       <div class="matrix-scroll" id="incomplete-table-container">
         ${this.buildTable()}
       </div>
+    </div>
+
+    <!-- Модальное окно комментариев -->
+    <div class="overlay" id="inc-modal-overlay" style="z-index: 1000; align-items:center; justify-content:center; display:none;">
+      <div class="card" style="width: 500px; max-width: 90vw; background: var(--surface); display:flex; flex-direction:column; max-height:80vh;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0;">💬 История комментариев</h3>
+          <button class="btn btn-icon" id="inc-modal-close">✕</button>
+        </div>
+        <div id="inc-modal-list" style="flex:1; overflow-y:auto; margin-bottom:12px; display:flex; flex-direction:column; gap:8px;"></div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="inc-modal-input" class="input-ctrl" placeholder="Новый комментарий..." style="flex:1;">
+          <button class="btn btn-primary" id="inc-modal-send">Отправить</button>
+        </div>
+      </div>
     </div>`;
 
     this.attachEvents();
@@ -34,7 +48,9 @@ export const IncompleteModule = {
 
   buildTable() {
     const objects = store.getObjects();
-    const works = store.getDict('works');
+    const worksApts = store.getDict('works');
+    const worksMop = store.getDict('worksMop');
+    const works = [...worksApts, ...worksMop];
 
     if (objects.length === 0) {
       return '<div style="padding: 40px; text-align: center; color: var(--text-secondary);">Нет объектов. Создайте объекты в разделе «Конфигуратор».</div>';
@@ -54,19 +70,20 @@ export const IncompleteModule = {
             // (Оставляем только те, у которых хоть что-то сделано ИЛИ есть квартиры)
             if (f.apts.length === 0 && t.status === 's-none') return;
 
-            rows.push({
-              key,
-              object: cfg.name,
-              house: cfg.house,
-              section: cfg.section,
-              floor: f.num < 0 ? `Подвал ${f.num}` : `${f.num} эт.`,
-              work,
-              status: t.text || 'Не начато',
-              l1: t.l1 || '',  // Исп. схемы
-              l2: t.l2 || '',  // АОСР
-              lMain: t.lMain || '',
-              remarksOpen: (t.remarks || []).filter(r => r.status === 'Открыто').length
-            });
+              rows.push({
+                key,
+                object: cfg.name,
+                house: cfg.house,
+                section: cfg.section,
+                floor: f.num < 0 ? `Подвал ${f.num}` : `${f.num} эт.`,
+                work,
+                status: t.text || 'Не начато',
+                l1: t.l1 || '',  // Исп. схемы
+                l2: t.l2 || '',  // АОСР
+                lMain: t.lMain || '',
+                remarksOpen: (t.remarks || []).filter(r => r.status === 'Открыто').length,
+                commentsCount: (t.comments || []).length
+              });
           });
         });
       });
@@ -101,7 +118,7 @@ export const IncompleteModule = {
         <td>${link(r.l1, '📄 Открыть')}</td>
         <td>${link(r.l2, '📑 Открыть')}</td>
         <td>${r.remarksOpen > 0 ? `<span style="color:var(--danger); font-weight:600;">${r.remarksOpen} откр.</span>` : '—'}</td>
-        <td><input class="input-ctrl inc-comment" data-key="${escapeHTML(r.key)}" value="${escapeHTML(this.comments[r.key] || '')}" placeholder="Комментарий..." style="min-width: 160px; font-size: 0.8rem;"></td>
+        <td><button class="btn btn-sm inc-btn-comment" data-key="${escapeHTML(r.key)}">💬 Комментарии (${r.commentsCount})</button></td>
       </tr>`).join('');
 
     return `
@@ -131,7 +148,7 @@ export const IncompleteModule = {
       input.oninput = (e) => {
         this.filters[e.target.dataset.col] = e.target.value;
         document.getElementById('incomplete-table-container').innerHTML = this.buildTable();
-        this.reattachCommentListeners();
+        this.attachCommentEvents();
       };
     });
 
@@ -142,15 +159,69 @@ export const IncompleteModule = {
 
     document.getElementById('btn-export-incomplete').onclick = () => this.exportExcel();
 
-    this.reattachCommentListeners();
+    this.attachCommentEvents();
+
+    document.getElementById('inc-modal-close').onclick = () => {
+      document.getElementById('inc-modal-overlay').style.display = 'none';
+      this.currentTaskKey = null;
+    };
   },
 
-  reattachCommentListeners() {
-    document.querySelectorAll('.inc-comment').forEach(input => {
-      input.oninput = (e) => {
-        this.comments[e.target.dataset.key] = e.target.value;
-      };
+  attachCommentEvents() {
+    document.querySelectorAll('.inc-btn-comment').forEach(btn => {
+      btn.onclick = () => this.openCommentsModal(btn.dataset.key);
     });
+  },
+
+  openCommentsModal(key) {
+    this.currentTaskKey = key;
+    const overlay = document.getElementById('inc-modal-overlay');
+    overlay.style.display = 'flex';
+    this.renderCommentsList();
+
+    const sendBtn = document.getElementById('inc-modal-send');
+    const input = document.getElementById('inc-modal-input');
+    
+    // Снимаем старые обработчики, если были (хак через замену узла)
+    const newSendBtn = sendBtn.cloneNode(true);
+    sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+    
+    newSendBtn.onclick = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      const t = store.getTask(key);
+      if (!t.comments) t.comments = [];
+      import('../auth.js').then(({ Auth }) => {
+        const author = Auth.currentUser.displayName || Auth.currentUser.email.split('@')[0];
+        t.comments.push({ id: Date.now(), text, date: new Date().toISOString(), author });
+        store.setTask(key, t);
+        input.value = '';
+        this.renderCommentsList();
+        document.getElementById('incomplete-table-container').innerHTML = this.buildTable();
+        this.attachCommentEvents();
+      });
+    };
+  },
+
+  renderCommentsList() {
+    const list = document.getElementById('inc-modal-list');
+    if (!this.currentTaskKey) return;
+    const t = store.getTask(this.currentTaskKey);
+    const comments = t.comments || [];
+    if (comments.length === 0) {
+      list.innerHTML = '<div style="color:var(--text-secondary); text-align:center; margin-top:20px;">Пока нет комментариев</div>';
+      return;
+    }
+    list.innerHTML = comments.map(c => `
+      <div style="background:var(--bg); padding:8px 12px; border-radius:var(--radius); font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.75rem; color:var(--text-secondary);">
+          <strong>${escapeHTML(c.author || 'Неизвестно')}</strong>
+          <span>${new Date(c.date).toLocaleString()}</span>
+        </div>
+        <div>${escapeHTML(c.text)}</div>
+      </div>
+    `).join('');
+    list.scrollTop = list.scrollHeight;
   },
 
   exportExcel() {

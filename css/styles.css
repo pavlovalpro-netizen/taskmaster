@@ -560,3 +560,50 @@ th:first-child { z-index: 12; background: #f8fafc; }
   overflow-y: auto;
 }
 .ew-drawer.open { transform: translateX(0); }
+
+/* ============================
+   ИНВЕРТИРОВАННАЯ МАТРИЦА (Строки = Работы, Столбцы = Этажи)
+   ============================ */
+.inverted-matrix table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.inverted-matrix th, .inverted-matrix td {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.inverted-matrix th {
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.inverted-matrix thead tr:nth-child(1) th { top: 0; }
+.inverted-matrix thead tr:nth-child(2) th { top: 38px; } /* Примерная высота первой строки заголовка */
+
+.inverted-matrix .sticky-col {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 11;
+  border-right: 2px solid var(--border);
+  font-weight: 600;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inverted-matrix thead .sticky-col {
+  z-index: 12;
+}
+
+/* Комментарии в Не завершенных */
+.inc-btn-comment {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.inc-btn-comment:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}

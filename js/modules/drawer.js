@@ -65,7 +65,10 @@ export const Drawer = {
         </div>
         
         <div class="drawer-section">
-          <label>📋 Чек-лист</label>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0;">📋 Чек-лист</label>
+            <label style="font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="chk-select-all" style="margin-right:4px;"> Выбрать всё</label>
+          </div>
           ${this.renderChecklist(t)}
         </div>
         
@@ -151,6 +154,22 @@ export const Drawer = {
     if (selectAllCheckbox) {
       selectAllCheckbox.onchange = () => {
         document.querySelectorAll('.apt-chk').forEach(c => c.checked = selectAllCheckbox.checked);
+      };
+    }
+
+    const selectAllChk = document.getElementById('chk-select-all');
+    if (selectAllChk) {
+      selectAllChk.onchange = () => {
+        const checked = selectAllChk.checked;
+        document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(c => {
+          c.checked = checked;
+          c.disabled = false;
+          c.closest('.checklist-item')?.classList.remove('locked');
+        });
+        if (!checked) {
+          // Если снимаем галочки, то восстанавливаем блокировки
+          this.handleCheckboxChange('c1');
+        }
       };
     }
 
