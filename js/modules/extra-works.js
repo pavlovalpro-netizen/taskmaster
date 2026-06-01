@@ -139,7 +139,7 @@ export const ExtraWorksModule = {
           <span>🏠 ${escapeHTML(w.house || '—')}</span>
           <span>📐 ${escapeHTML(w.section || '—')}</span>
           ${w.floors ? `<span>🏢 Эт: ${escapeHTML(w.floors)}</span>` : ''}
-          <span>🏗 Кв: ${escapeHTML(w.apartments || '—')}</span>
+          <span>${w.category === 'МОП' ? '🏢 Пом:' : '🏗 Кв:'} ${escapeHTML(w.apartments || '—')}</span>
           ${w.date ? `<span>📅 ${new Date(w.date).toLocaleDateString()}</span>` : ''}
         </div>
         ${w.description ? `<div style="margin-top:6px; font-size:0.82rem; color:var(--text-secondary); font-style:italic;">${escapeHTML(w.description)}</div>` : ''}
@@ -217,6 +217,7 @@ export const ExtraWorksModule = {
       work = {
         id: Date.now().toString(),
         type: 'Рекламация',
+        category: 'Квартиры',
         workName: '',
         objectName: '',
         house: '',
@@ -253,10 +254,7 @@ export const ExtraWorksModule = {
     const worksMop = store.getDict('worksMop');
     const works = [...worksApts, ...worksMop];
     const objects = store.getObjects();
-    const workOpts = [...works, ...WORK_TYPES.map(() => null)].filter((_, i) => i < works.length)
-      .map(wk => `<option value="${escapeHTML(wk)}" ${w.workName === wk ? 'selected' : ''}>${escapeHTML(wk)}</option>`).join('');
     const typeOpts = WORK_TYPES.map(t => `<option value="${escapeHTML(t)}" ${w.type === t ? 'selected' : ''}>${escapeHTML(t)}</option>`).join('');
-    const objOpts = objects.map(o => `<option value="${escapeHTML(o.name)}" ${w.objectName === o.name ? 'selected' : ''}>${escapeHTML(o.name)} — ${escapeHTML(o.house)} (${escapeHTML(o.section)})</option>`).join('');
 
     const renderLink = (id, label, val) => `
       <div style="margin-bottom:4px;">
@@ -300,9 +298,18 @@ export const ExtraWorksModule = {
 
       <!-- Основное -->
       <div id="ew-tab-main">
-        <div class="drawer-section">
-          <label>Тип</label>
-          <select class="input-ctrl" id="ew-type">${typeOpts}</select>
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label>Тип</label>
+            <select class="input-ctrl" id="ew-type">${typeOpts}</select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Категория</label>
+            <select class="input-ctrl" id="ew-category">
+              <option value="Квартиры" ${w.category !== 'МОП' ? 'selected' : ''}>Квартиры</option>
+              <option value="МОП" ${w.category === 'МОП' ? 'selected' : ''}>МОП</option>
+            </select>
+          </div>
         </div>
         <div class="drawer-section">
           <label>Вид работы</label>
@@ -330,7 +337,7 @@ export const ExtraWorksModule = {
             <input class="input-ctrl" id="ew-floors" value="${escapeHTML(w.floors || '')}" placeholder="напр. 2,3,5-7">
           </div>
           <div class="form-group" style="flex:1;">
-            <label>Квартиры (через запятую)</label>
+            <label id="ew-apts-label">${w.category === 'МОП' ? 'Помещения МОП (через запятую)' : 'Квартиры (через запятую)'}</label>
             <input class="input-ctrl" id="ew-apartments" value="${escapeHTML(w.apartments || '')}" placeholder="напр. 12, 15, 18-22">
           </div>
         </div>
@@ -426,6 +433,17 @@ export const ExtraWorksModule = {
       }
     });
 
+    // Изменение категории
+    const catSelect = document.getElementById('ew-category');
+    if (catSelect) {
+      catSelect.onchange = (e) => {
+        const lbl = document.getElementById('ew-apts-label');
+        if (lbl) {
+          lbl.textContent = e.target.value === 'МОП' ? 'Помещения МОП (через запятую)' : 'Квартиры (через запятую)';
+        }
+      };
+    }
+
     // Удаление
     document.getElementById('ew-btn-delete')?.addEventListener('click', async () => {
       if (await CustomDialog.confirm('Удалить эту запись?')) {
@@ -488,6 +506,7 @@ export const ExtraWorksModule = {
   save(work) {
     const g = id => document.getElementById(id);
     work.type        = g('ew-type')?.value       || work.type;
+    work.category    = g('ew-category')?.value   || 'Квартиры';
     work.workName    = g('ew-workName')?.value    || '';
     work.objectName  = g('ew-objectName')?.value  || '';
     work.house       = g('ew-house')?.value       || '';

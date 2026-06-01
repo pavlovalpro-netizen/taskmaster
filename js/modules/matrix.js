@@ -75,16 +75,14 @@ export const Matrix = {
           toast('Объект не найден','error'); 
           return; 
         }
-        const apts = cfg.groups[parseInt(groupIdx)]?.floors.find(f => f.num === parseInt(floorNum))?.apts || [];
+        const floor = cfg.groups[parseInt(groupIdx)]?.floors.find(f => f.num === parseInt(floorNum));
+        if (!floor) return;
         
-        // workIdx here maps to worksApts or worksMop. But in drawer it uses works.
-        // Let's pass the exact work name to drawer.
         const workName = td.dataset.workname;
-        // Drawer needs workIdx relative to the combined works array for backwards compatibility.
         const works = [...store.getDict('works'), ...store.getDict('worksMop')];
         const combinedWorkIdx = works.indexOf(workName);
 
-        Drawer.open(configId, workName, parseInt(floorNum), apts, parseInt(groupIdx), combinedWorkIdx !== -1 ? combinedWorkIdx : workIdx, cfg);
+        Drawer.open(configId, workName, parseInt(floorNum), floor, parseInt(groupIdx), combinedWorkIdx !== -1 ? combinedWorkIdx : workIdx, cfg, workType);
       }
     });
   },
@@ -160,10 +158,17 @@ export const Matrix = {
           g.floors.forEach((f, fi) => {
             const key = `${config.id}_${gi}_${f.num}_${globalIdx}`;
             const t = store.getTask(key);
-            const missing = (f.apts.length - (t.aptsDone?.length || 0));
-            const indicator = (f.apts.length > 0 && missing > 0) ? `<span class="apt-indicator">${missing}</span>` : '';
+            
+            const isMop = worksLabel === 'Работы в МОП';
+            const totalEntities = isMop ? (f.mopZones || []).length : (f.apts || []).length;
+            const doneEntities = isMop ? (t.mopDone || []).length : (t.aptsDone || []).length;
+            const missing = totalEntities - doneEntities;
+            
+            const indicator = (totalEntities > 0 && missing > 0) ? `<span class="apt-indicator">${missing}</span>` : '';
             const borderStyle = fi === 0 ? 'border-left:2px solid var(--border);' : '';
-            rowsHtml += `<td style="${borderStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${worksLabel}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}"><span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span></td>`;
+            const workType = isMop ? 'mop' : 'apts';
+            
+            rowsHtml += `<td style="${borderStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${workType}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}"><span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span></td>`;
           });
         });
         rowsHtml += '</tr>';

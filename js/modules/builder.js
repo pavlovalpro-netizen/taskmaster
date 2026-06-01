@@ -33,6 +33,7 @@ export const Builder = {
         </div>
         <div class="form-group"><label>Кв. на этаже</label><input id="b-apts" class="input-ctrl" value="4" type="number" min="0"></div>
         <div class="form-group"><label>Начать с №</label><input id="b-start" class="input-ctrl" value="1" type="number" min="1"></div>
+        <div class="form-group"><label>Зоны МОП (через запятую)</label><input id="b-mop" class="input-ctrl" value="Коридор, Лифтовой холл, Лестничная клетка"></div>
         <button class="btn btn-primary" id="btn-add-group">Добавить</button>
       </div>
       <div id="b-groups-list"></div>
@@ -92,6 +93,8 @@ export const Builder = {
     const aptsCount = parseInt(document.getElementById('b-apts').value) || 0;
     let startNum = parseInt(document.getElementById('b-start').value) || 1;
     
+    const mopZones = document.getElementById('b-mop').value.split(',').map(s => s.trim()).filter(s => s);
+
     const floors = [];
     for (let i = min; i <= max; i++) {
       if (i === 0) continue; // нулевого этажа не бывает
@@ -101,7 +104,7 @@ export const Builder = {
           apts.push(startNum++);
         }
       }
-      floors.push({ num: i, apts });
+      floors.push({ num: i, apts, mopZones });
     }
     
     let groupName = document.getElementById('b-gname-select').value;

@@ -35,7 +35,29 @@ class Store {
         const data = docSnap.data();
         if (!data.activityLog) data.activityLog = [];
         if (!data.userNotifications) data.userNotifications = {};
+        
+        // Миграция: добавляем mopZones всем этажам, если их нет
+        let needsSave = false;
+        if (data.objects) {
+          data.objects.forEach(obj => {
+            if (obj.groups) {
+              obj.groups.forEach(g => {
+                if (g.floors) {
+                  g.floors.forEach(f => {
+                    if (!f.mopZones) {
+                      f.mopZones = ['Коридор', 'Лифтовой холл', 'Лестничная клетка'];
+                      needsSave = true;
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+        
         this.db = data;
+        if (needsSave) this.saveToFirebase();
+
         this.checkNotifications();
         this.emitAll();
       } else {

@@ -23,9 +23,9 @@ function parseFloorRange(input) {
 export const Drawer = {
   current: null,
   
-  open(configId, work, floor, apts, groupIdx, workIdx, config) {
-    const key = `${configId}_${groupIdx}_${floor}_${workIdx}`;
-    this.current = { key, work, floor, apts, groupIdx, workIdx, config };
+  open(configId, work, floorNum, floorObj, groupIdx, workIdx, config, workType = 'apts') {
+    const key = `${configId}_${groupIdx}_${floorNum}_${workIdx}`;
+    this.current = { key, work, floorNum, floorObj, groupIdx, workIdx, config, workType };
     const t = store.getTask(key);
     
     // Строим диапазон этажей по умолчанию для группы
@@ -36,8 +36,7 @@ export const Drawer = {
     document.getElementById('drawer').innerHTML = `
     <div class="drawer-header">
       <div>
-        <h3>${escapeHTML(work)}</h3>
-        <small>${escapeHTML(config.name)} — ${escapeHTML(config.house)} (${escapeHTML(config.section)}) | ${escapeHTML(String(floor))} этаж</small>
+        <small>${escapeHTML(config.name)} — ${escapeHTML(config.house)} (${escapeHTML(config.section)}) | ${escapeHTML(String(floorNum))} этаж</small>
       </div>
       <button class="btn btn-icon" id="drawer-close">✕</button>
     </div>
@@ -56,11 +55,14 @@ export const Drawer = {
         
         <div class="drawer-section">
           <div style="display:flex; justify-content:space-between;">
-            <label>🏠 Квартиры</label>
+            <label>${workType === 'mop' ? '🏢 Зоны МОП' : '🏠 Квартиры'}</label>
             <label><input type="checkbox" id="apt-select-all"> Выбрать все</label>
           </div>
-          <div class="apts-grid" id="d-apts">
-            ${apts.map(n => `<label><input type="checkbox" class="apt-chk" value="${escapeHTML(String(n))}" ${t.aptsDone?.includes(n) ? 'checked' : ''}> Кв.${escapeHTML(String(n))}</label>`).join('')}
+          <div class="apt-grid">
+            ${(workType === 'mop' ? (floorObj.mopZones || []) : (floorObj.apts || [])).map(item => {
+              const doneArr = workType === 'mop' ? (t.mopDone || []) : (t.aptsDone || []);
+              return `<label class="apt-btn"><input type="checkbox" class="apt-chk" value="${escapeHTML(String(item))}" ${doneArr.includes(item) ? 'checked' : ''}> ${escapeHTML(String(item))}</label>`;
+            }).join('')}
           </div>
         </div>
         
@@ -167,18 +169,15 @@ export const Drawer = {
           c.closest('.checklist-item')?.classList.remove('locked');
         });
         if (!checked) {
-          // Если снимаем галочки, то восстанавливаем блокировки
           this.handleCheckboxChange('c1');
         }
       };
     }
 
-    // Кнопка "Вся группа" заполняет поле ввода всеми этажами
     document.getElementById('btn-fill-all-floors')?.addEventListener('click', () => {
       const group = this.current.config.groups[this.current.groupIdx];
       if (group) {
         const floors = group.floors.map(f => f.num);
-        // Строим компактный диапазон
         document.getElementById('apply-floors-input').value = this.toRangeString(floors);
       }
     });
@@ -198,7 +197,6 @@ export const Drawer = {
     });
   },
 
-  // Преобразование массива этажей в компактную строку типа "1-5, 8, 12-17"
   toRangeString(floors) {
     if (!floors || floors.length === 0) return '';
     const sorted = [...floors].sort((a, b) => a - b);
@@ -247,15 +245,22 @@ export const Drawer = {
   },
   
   save() {
-    const data = {};
-    ['lMain', 'l1', 'l2', 'l3', 'l4', 'l5', 'lFinal'].forEach(id => data[id] = document.getElementById(id)?.value || '');
-    ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'].forEach(id => data[id] = document.getElementById(id)?.checked || false);
+    const data = store.getTask(this.current.key) || {};
+    ['c1','c2','c3','c4','c5','c6','c7','c8','c9'].forEach(c => data[c] = document.getElementById(c)?.checked || false);
+    ['l1','l2','l3','l4','l5','lFinal','lMain'].forEach(l => data[l] = document.getElementById(l)?.value || '');
     
-    data.aptsDone = [...document.querySelectorAll('.apt-chk:checked')].map(c => parseInt(c.value));
-    data.remarks = this.current?.remarks || [];
+    const doneArr = Array.from(document.querySelectorAll('.apt-chk:checked')).map(cb => {
+      return this.current.workType === 'mop' ? cb.value : parseInt(cb.value);
+    });
     
-    const aptsTotal = this.current.apts.length;
-    const missing = aptsTotal - data.aptsDone.length;
+    if (this.current.workType === 'mop') {
+      data.mopDone = doneArr;
+    } else {
+      data.aptsDone = doneArr;
+    }
+    
+    const itemsTotal = this.current.workType === 'mop' ? (this.current.floorObj.mopZones || []).length : (this.current.floorObj.apts || []).length;
+    const missing = itemsTotal - doneArr.length;
     
     let status = 's-none', text = 'Не начато';
     if (data.c9) { status = 's-done'; text = 'В архиве'; }
@@ -268,7 +273,9 @@ export const Drawer = {
     else if (data.c2) { status = 's-dev'; text = 'АОСР готов'; }
     else if (data.c1) { status = 's-dev'; text = 'Схемы готовы'; }
     
-    if (aptsTotal > 0 && missing > 0 && status !== 's-done') text += ` (${missing} кв.)`;
+    if (itemsTotal > 0 && missing > 0 && status !== 's-done') {
+      text += this.current.workType === 'mop' ? ` (${missing} пом.)` : ` (${missing} кв.)`;
+    }
     data.status = status;
     data.text = text;
     
@@ -289,14 +296,25 @@ export const Drawer = {
       group.floors.forEach(f => {
         if (selectedFloors.has(f.num)) {
           // Считаем missing для конкретного этажа
-          const fAptsDone = [...f.apts]; // при применении к диапазону — весь этаж считается сделанным
+          // При применении к диапазону — весь этаж считается сделанным
+          const fItemsDone = this.current.workType === 'mop' ? [...(f.mopZones || [])] : [...(f.apts || [])];
           const fMissing = 0;
-          const floorText = fMissing > 0 && data.status !== 's-done' 
-            ? data.text.replace(/ \(\d+ кв\.\)$/, '') + ` (${fMissing} кв.)`
-            : data.text.replace(/ \(\d+ кв\.\)$/, '');
+          let floorText = data.text.replace(/ \(\d+ (кв\.|пом\.)\)$/, '');
+          
+          if (fMissing > 0 && data.status !== 's-done') {
+            floorText += this.current.workType === 'mop' ? ` (${fMissing} пом.)` : ` (${fMissing} кв.)`;
+          }
+
+          const newTaskData = { ...data, text: floorText };
+          if (this.current.workType === 'mop') {
+            newTaskData.mopDone = fItemsDone;
+          } else {
+            newTaskData.aptsDone = fItemsDone;
+          }
+
           store.setTask(
             `${this.current.config.id}_${this.current.groupIdx}_${f.num}_${this.current.workIdx}`,
-            { ...data, text: floorText, aptsDone: fAptsDone }
+            newTaskData
           );
           savedCount++;
         }
