@@ -111,8 +111,7 @@ export const ExtraWorksModule = {
       const matchType   = !this.filterType   || w.type === this.filterType;
       const matchObject = !this.filterObject || w.objectName === this.filterObject;
       const matchHouse  = !this.filterHouse  || (w.house || '').toLowerCase().includes(this.filterHouse.toLowerCase());
-      const matchSection= !this.filterSection|| (w.section || '').toLowerCase().includes(this.filterSection.toLowerCase());
-      const matchSection = !this.filterSection || w.section === this.filterSection;
+      const matchSection = !this.filterSection || (w.section || '').toLowerCase().includes(this.filterSection.toLowerCase());
       const matchStatus = !this.filterStatus || computeStatus(w).text === this.filterStatus;
       const matchCategory = !this.filterCategory || w.category === this.filterCategory;
       return matchSearch && matchType && matchObject && matchHouse && matchSection && matchStatus && matchCategory;
