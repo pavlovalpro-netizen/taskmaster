@@ -357,3 +357,6 @@ main {
 
 .inc-btn-comment { background: var(--bg); border: 1px solid var(--border); color: var(--text); }
 .inc-btn-comment:hover { border-color: var(--primary); color: var(--primary); }
+
+.drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 100vw; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -4px 0 24px rgba(0,0,0,0.1); transform: translateX(110%); transition: transform 0.28s cubic-bezier(.4,0,.2,1); z-index: 201; display: flex; flex-direction: column; overflow-y: auto; }
+.drawer.open { transform: translateX(0); }
