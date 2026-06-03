@@ -63,8 +63,13 @@ export const ExtraWorksModule = {
       <div class="form-row" style="flex-wrap:wrap; gap:8px; background:var(--bg); padding:12px; border-radius:var(--radius); border:1px solid var(--border);">
         <input class="input-ctrl" id="ew-search" placeholder="Поиск..." value="${escapeHTML(this.searchQuery)}" style="flex:1; min-width:140px;">
         <select class="input-ctrl" id="ew-filter-type" style="flex:1; min-width:140px;">
-          <option value="">Все типы</option>
+          <option value="">Все виды заявок</option>
           ${typeOpts}
+        </select>
+        <select class="input-ctrl" id="ew-filter-category" style="flex:1; min-width:120px;">
+          <option value="">Категория (Все)</option>
+          <option value="Квартира" ${this.filterCategory === 'Квартира' ? 'selected' : ''}>Квартира</option>
+          <option value="МОП" ${this.filterCategory === 'МОП' ? 'selected' : ''}>МОП</option>
         </select>
         <select class="input-ctrl" id="ew-filter-object" style="flex:1; min-width:140px;">
           <option value="">Все объекты</option>
@@ -107,8 +112,10 @@ export const ExtraWorksModule = {
       const matchObject = !this.filterObject || w.objectName === this.filterObject;
       const matchHouse  = !this.filterHouse  || (w.house || '').toLowerCase().includes(this.filterHouse.toLowerCase());
       const matchSection= !this.filterSection|| (w.section || '').toLowerCase().includes(this.filterSection.toLowerCase());
+      const matchSection = !this.filterSection || w.section === this.filterSection;
       const matchStatus = !this.filterStatus || computeStatus(w).text === this.filterStatus;
-      return matchSearch && matchType && matchObject && matchHouse && matchSection && matchStatus;
+      const matchCategory = !this.filterCategory || w.category === this.filterCategory;
+      return matchSearch && matchType && matchObject && matchHouse && matchSection && matchStatus && matchCategory;
     });
   },
 
@@ -132,15 +139,16 @@ export const ExtraWorksModule = {
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <span class="status-badge ${status}" style="white-space:nowrap;">${escapeHTML(text)}</span>
           <span style="font-size:0.75rem; background:${typeColor}; color:#1e293b; padding:2px 8px; border-radius:10px; font-weight:600;">${escapeHTML(w.type || '')}</span>
+          <span style="font-size:0.75rem; background:var(--bg); border:1px solid var(--border); padding:2px 8px; border-radius:10px; font-weight:600;">Тип: ${escapeHTML(w.category || 'Квартира')}</span>
           <strong style="flex:1; min-width:150px;">${escapeHTML(w.workName || 'Без названия')}</strong>
         </div>
         <div style="margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem; color:var(--text-secondary);">
-          <span>🏢 ${escapeHTML(w.objectName || '—')}</span>
-          <span>🏠 ${escapeHTML(w.house || '—')}</span>
-          <span>📐 ${escapeHTML(w.section || '—')}</span>
-          ${w.floors ? `<span>🏢 Эт: ${escapeHTML(w.floors)}</span>` : ''}
-          <span>${w.category === 'МОП' ? '🏢 Пом:' : '🏗 Кв:'} ${escapeHTML(w.apartments || '—')}</span>
-          ${w.date ? `<span>📅 ${new Date(w.date).toLocaleDateString()}</span>` : ''}
+          <span>Объект: ${escapeHTML(w.objectName || '—')}</span>
+          <span>Дом: ${escapeHTML(w.house || '—')}</span>
+          <span>Секция: ${escapeHTML(w.section || '—')}</span>
+          ${w.floors ? `<span>Эт: ${escapeHTML(w.floors)}</span>` : ''}
+          <span>${w.category === 'МОП' ? 'Пом:' : 'Кв:'} ${escapeHTML(w.apartments || '—')}</span>
+          ${w.date ? `<span>Дата: ${new Date(w.date).toLocaleDateString()}</span>` : ''}
         </div>
         ${w.description ? `<div style="margin-top:6px; font-size:0.82rem; color:var(--text-secondary); font-style:italic;">${escapeHTML(w.description)}</div>` : ''}
       </div>`;
@@ -158,6 +166,12 @@ export const ExtraWorksModule = {
 
     document.getElementById('ew-filter-type').onchange = (e) => {
       this.filterType = e.target.value;
+      document.getElementById('ew-list').innerHTML = this.renderList();
+      this.attachCardEvents();
+    };
+
+    document.getElementById('ew-filter-category').onchange = (e) => {
+      this.filterCategory = e.target.value;
       document.getElementById('ew-list').innerHTML = this.renderList();
       this.attachCardEvents();
     };

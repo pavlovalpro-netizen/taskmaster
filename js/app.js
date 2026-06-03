@@ -61,20 +61,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Строим nav с вкладкой Пользователи и Незавершённые
         UI.buildNav([
-          { id: 'tasks',        label: '📝 Задачи' },
-          { id: 'matrix',       label: '🏗 Матрица ИД' },
-          { id: 'incomplete',   label: '🔍 Незавершённые' },
-          { id: 'extra-works',  label: '⚠️ Доп. работы' },
-          { id: 'dict',         label: '📚 Справочники' },
-          { id: 'builder',      label: '⚙️ Конфигуратор' },
-          { id: 'registry',     label: '📋 Реестр' },
-          { id: 'users',        label: '👥 Пользователи' }
+          { id: 'tasks',        label: 'Задачи' },
+          { id: 'matrix',       label: 'Матрица ИД' },
+          { id: 'incomplete',   label: 'Незавершённые' },
+          { id: 'extra-works',  label: 'Доп. работы' },
+          { id: 'dict',         label: 'Справочники' },
+          { id: 'builder',      label: 'Конфигуратор' },
+          { id: 'registry',     label: 'Реестр' },
+          { id: 'users',        label: 'Пользователи' }
         ], appModules);
       } else {
-        // Инженер — ограниченные вкладки
+        // Обычный Инженер видит только свои вкладки
         UI.buildNav([
-          { id: 'tasks',  label: '📝 Задачи' },
-          { id: 'matrix', label: '🏗 Матрица ИД' }
+          { id: 'tasks',  label: 'Задачи' },
+          { id: 'matrix', label: 'Матрица ИД' }
         ], appModules);
       }
 

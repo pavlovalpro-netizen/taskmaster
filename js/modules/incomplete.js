@@ -2,7 +2,7 @@ import { store } from '../store.js';
 import { escapeHTML } from '../utils.js';
 
 export const IncompleteModule = {
-  filters: { object: '', house: '', section: '', work: '', status: '' },
+  filters: { object: '', house: '', section: '', work: '', status: '', type: '' },
 
   render() {
     document.getElementById('tab-incomplete').innerHTML = `
@@ -19,7 +19,12 @@ export const IncompleteModule = {
         <input class="input-ctrl inc-filter" data-col="section" placeholder="Фильтр: Секция" value="${escapeHTML(this.filters.section)}" style="flex: 1; min-width: 100px;">
         <input class="input-ctrl inc-filter" data-col="work"    placeholder="Фильтр: Вид работы" value="${escapeHTML(this.filters.work)}" style="flex: 1; min-width: 140px;">
         <input class="input-ctrl inc-filter" data-col="status"  placeholder="Фильтр: Статус" value="${escapeHTML(this.filters.status)}" style="flex: 1; min-width: 120px;">
-        <button class="btn" id="btn-reset-inc-filters">✕ Сбросить</button>
+        <select class="input-ctrl inc-filter" data-col="type" style="flex: 1; min-width: 120px;">
+          <option value="">Тип (Все)</option>
+          <option value="apts" ${this.filters.type === 'apts' ? 'selected' : ''}>Квартиры</option>
+          <option value="mop" ${this.filters.type === 'mop' ? 'selected' : ''}>МОП</option>
+        </select>
+        <button class="btn" id="btn-reset-inc-filters">Сброс</button>
       </div>
 
       <!-- Таблица -->
@@ -62,6 +67,9 @@ export const IncompleteModule = {
       cfg.groups.forEach((g, gi) => {
         g.floors.forEach(f => {
           works.forEach((work, wi) => {
+            const isMop = wi >= worksApts.length;
+            const workType = isMop ? 'mop' : 'apts';
+            if (this.filters.type && this.filters.type !== workType) return;
             const key = `${cfg.id}_${gi}_${f.num}_${wi}`;
             const t = store.getTask(key);
             // Пропускаем если в архиве (s-done + текст "В архиве")
@@ -153,7 +161,7 @@ export const IncompleteModule = {
     });
 
     document.getElementById('btn-reset-inc-filters').onclick = () => {
-      this.filters = { object: '', house: '', section: '', work: '', status: '' };
+      this.filters = { object: '', house: '', section: '', work: '', status: '', type: '' };
       this.render();
     };
 

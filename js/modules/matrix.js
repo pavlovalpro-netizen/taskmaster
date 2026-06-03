@@ -36,6 +36,14 @@ export const Matrix = {
           ${filterStatusOpts}
         </select>
       </div>
+      <div class="form-group">
+        <label>Тип работ</label>
+        <select id="matrix-filter-type" class="input-ctrl">
+          <option value="">Квартиры и МОП</option>
+          <option value="apts">Только Квартиры</option>
+          <option value="mop">Только МОП</option>
+        </select>
+      </div>
       <button class="btn" id="btn-undo">↩ Отменить</button>
       <button class="btn btn-excel" id="btn-export">📥 Excel</button>
     </div></div>
@@ -63,6 +71,7 @@ export const Matrix = {
       this.filterStatus = e.target.value;
       this.filterRows();
     };
+    document.getElementById('matrix-filter-type').onchange = () => this.filterRows();
     
     // Delegation for table cells
     document.getElementById('matrix-table-container').addEventListener('click', (e) => {
@@ -79,10 +88,7 @@ export const Matrix = {
         if (!floor) return;
         
         const workName = td.dataset.workname;
-        const works = [...store.getDict('works'), ...store.getDict('worksMop')];
-        const combinedWorkIdx = works.indexOf(workName);
-
-        Drawer.open(configId, workName, parseInt(floorNum), floor, parseInt(groupIdx), combinedWorkIdx !== -1 ? combinedWorkIdx : workIdx, cfg, workType);
+        Drawer.open(configId, workName, parseInt(floorNum), floor, parseInt(groupIdx), workIdx, cfg, workType);
       }
     });
   },
@@ -145,13 +151,13 @@ export const Matrix = {
 
     let html = `<table><thead>${groupHeaderHtml}${floorHeaderHtml}</thead><tbody>`;
     
-    const buildRowsForWorks = (worksArray, worksLabel, combinedOffset) => {
+    const buildRowsForWorks = (worksArray, worksLabel, combinedOffset, type) => {
       if (worksArray.length === 0) return '';
-      let rowsHtml = `<tr class="work-group-header"><td colspan="${1 + config.groups.reduce((acc, g) => acc + g.floors.length, 0)}" style="background:var(--surface); font-weight:bold; color:var(--primary); padding-top:16px;">📁 ${worksLabel}</td></tr>`;
+      let rowsHtml = `<tr class="work-group-header"><td colspan="${1 + config.groups.reduce((acc, g) => acc + g.floors.length, 0)}" style="background:var(--surface); font-weight:bold; color:var(--primary); padding-top:16px;"> ${worksLabel}</td></tr>`;
       
       worksArray.forEach((w, localIdx) => {
         const globalIdx = combinedOffset + localIdx;
-        rowsHtml += `<tr class="matrix-row" data-work="${escapeHTML(w.toLowerCase())}">`;
+        rowsHtml += `<tr class="matrix-row" data-work="${escapeHTML(w.toLowerCase())}" data-type="${type}">`;
         rowsHtml += `<td class="sticky-col">${escapeHTML(w)}</td>`;
         
         config.groups.forEach((g, gi) => {
@@ -159,7 +165,7 @@ export const Matrix = {
             const key = `${config.id}_${gi}_${f.num}_${globalIdx}`;
             const t = store.getTask(key);
             
-            const isMop = worksLabel === 'Работы в МОП';
+            const isMop = type === 'mop';
             const totalEntities = isMop ? (f.mopZones || []).length : (f.apts || []).length;
             const doneEntities = isMop ? (t.mopDone || []).length : (t.aptsDone || []).length;
             const missing = totalEntities - doneEntities;
@@ -176,8 +182,8 @@ export const Matrix = {
       return rowsHtml;
     };
 
-    html += buildRowsForWorks(worksApts, 'Работы в квартирах', 0);
-    html += buildRowsForWorks(worksMop, 'Работы в МОП', worksApts.length);
+    html += buildRowsForWorks(worksApts, 'Работы в квартирах', 0, 'apts');
+    html += buildRowsForWorks(worksMop, 'Работы в МОП', worksApts.length, 'mop');
     
     html += '</tbody></table>';
     container.innerHTML = html;
@@ -196,19 +202,17 @@ export const Matrix = {
     
     const worksApts = store.getDict('works');
     const worksMop = store.getDict('worksMop');
-    const worksAll = [...worksApts, ...worksMop];
 
     let html = '<table><thead><tr><th class="sticky-col">Вид работы</th>';
     configs.forEach(cfg => html += `<th>${escapeHTML(cfg.section)}</th>`);
     html += '</tr></thead><tbody>';
     
-    const buildSummaryRows = (worksArray, worksLabel, combinedOffset) => {
+    const buildSummaryRows = (worksArray, worksLabel, combinedOffset, type) => {
       if (worksArray.length === 0) return '';
-      let rowsHtml = `<tr class="work-group-header"><td colspan="${1 + configs.length}" style="background:var(--surface); font-weight:bold; color:var(--primary); padding-top:16px;">📁 ${worksLabel}</td></tr>`;
-      
+      let rowsHtml = `<tr class="work-group-header"><td colspan="2" style="background:var(--surface); font-weight:bold; color:var(--primary); padding-top:16px;"> ${worksLabel}</td></tr>`;
       worksArray.forEach((w, localIdx) => {
         const globalIdx = combinedOffset + localIdx;
-        rowsHtml += `<tr class="matrix-row" data-work="${escapeHTML(w.toLowerCase())}">`;
+        rowsHtml += `<tr class="matrix-row" data-work="${escapeHTML(w.toLowerCase())}" data-type="${type}">`;
         rowsHtml += `<td class="sticky-col">${escapeHTML(w)}</td>`;
         
         configs.forEach(cfg => {
@@ -233,8 +237,8 @@ export const Matrix = {
       return rowsHtml;
     };
 
-    html += buildSummaryRows(worksApts, 'Работы в квартирах', 0);
-    html += buildSummaryRows(worksMop, 'Работы в МОП', worksApts.length);
+    html += buildSummaryRows(worksApts, 'Работы в квартирах', 0, 'apts');
+    html += buildSummaryRows(worksMop, 'Работы в МОП', worksApts.length, 'mop');
     
     html += '</tbody></table>';
     container.innerHTML = html;
@@ -244,18 +248,19 @@ export const Matrix = {
   filterRows() {
     const q = (document.getElementById('matrix-search')?.value || '').toLowerCase();
     const filterStatus = this.filterStatus;
+    const filterType = document.getElementById('matrix-filter-type')?.value;
 
     document.querySelectorAll('.matrix-row').forEach(tr => {
       const workName = tr.dataset.work || '';
+      const rowType = tr.dataset.type || '';
       const matchSearch = !q || workName.includes(q);
+      const matchType = !filterType || rowType === filterType;
       
       let matchStatus = true;
       if (filterStatus && this.viewMode === 'detail') {
-        // Если выбран фильтр по статусу, проверяем есть ли в строке хотя бы одна ячейка с таким статусом
         const cells = Array.from(tr.querySelectorAll('td[data-status]'));
         matchStatus = cells.some(td => td.dataset.status === filterStatus);
         
-        // Визуально глушим ячейки, которые не подпадают под фильтр
         cells.forEach(td => {
           if (td.dataset.status !== filterStatus) {
             td.style.opacity = '0.2';
@@ -264,11 +269,10 @@ export const Matrix = {
           }
         });
       } else {
-        // Сброс прозрачности
         tr.querySelectorAll('td[data-status]').forEach(td => td.style.opacity = '1');
       }
 
-      tr.style.display = (matchSearch && matchStatus) ? '' : 'none';
+      tr.style.display = (matchSearch && matchStatus && matchType) ? '' : 'none';
     });
 
     // Скрываем заголовки групп, если все их строки скрыты

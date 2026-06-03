@@ -19,6 +19,13 @@ export const TasksModule = {
         .join('');
     }
 
+    let objectsOptions = '<option value="">Все объекты</option>';
+    let housesOptions = '<option value="">Все дома</option>';
+    const objs = store.getDict('objects');
+    const houses = store.getDict('houses');
+    if (objs.length) objectsOptions += objs.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
+    if (houses.length) housesOptions += houses.map(h => `<option value="${escapeHTML(h)}">${escapeHTML(h)}</option>`).join('');
+
     // Блок фильтров по инженерам (только для Админа)
     let engineerFiltersHtml = '';
     if (isAdmin && Auth.usersList) {
@@ -29,7 +36,7 @@ export const TasksModule = {
           <button class="filter-btn ${!this.filterByAssignee ? 'active' : ''}" data-assignee="">Все задачи</button>
           ${engineers.map(u => `
             <button class="filter-btn ${this.filterByAssignee === u.id ? 'active' : ''}" data-assignee="${escapeHTML(u.id)}">
-              👤 ${escapeHTML(u.name || u.email.split('@')[0])}
+              Исполнитель: ${escapeHTML(u.name || u.email.split('@')[0])}
             </button>
           `).join('')}
         `;
@@ -39,6 +46,14 @@ export const TasksModule = {
     const addTaskForm = `
       <div class="form-row" style="margin-bottom: 16px; flex-wrap: wrap;">
         <input id="new-task-title" class="input-ctrl" placeholder="Название задачи" style="flex: 2; min-width: 200px;">
+        <select id="new-task-object" class="input-ctrl" style="flex: 1; min-width: 120px;">
+          <option value="">Без объекта</option>
+          ${objs.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}
+        </select>
+        <select id="new-task-house" class="input-ctrl" style="flex: 1; min-width: 120px;">
+          <option value="">Без дома</option>
+          ${houses.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}
+        </select>
         <input id="new-task-link" class="input-ctrl" placeholder="Ссылка (необязательно)" style="flex: 1; min-width: 150px;">
         <input id="new-task-deadline" class="input-ctrl" type="date" style="width: auto;">
         <select id="new-task-priority" class="input-ctrl" style="width: auto;">
@@ -56,6 +71,15 @@ export const TasksModule = {
     <div style="display: flex; gap: 20px; height: 100%; align-items: flex-start;">
       <!-- Боковая панель фильтров -->
       <div class="card tasks-sidebar">
+        <h4 style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Объект</h4>
+        <select id="filter-task-object" class="input-ctrl" style="margin-bottom: 12px; padding: 6px 10px; font-size: 0.8rem;">
+          ${objectsOptions}
+        </select>
+        <h4 style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Дом</h4>
+        <select id="filter-task-house" class="input-ctrl" style="margin-bottom: 12px; padding: 6px 10px; font-size: 0.8rem;">
+          ${housesOptions}
+        </select>
+
         <h4 style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Статус</h4>
         <div class="filter-list">
           <button class="filter-btn ${this.currentFilter === 'active' ? 'active' : ''}" data-filter="active">Все активные</button>
@@ -108,6 +132,12 @@ export const TasksModule = {
     if (this.filterByAssignee !== null && this.filterByAssignee !== '') {
       tasks = tasks.filter(t => t.assigneeId === this.filterByAssignee);
     }
+
+    const filterObj = document.getElementById('filter-task-object')?.value;
+    const filterHouse = document.getElementById('filter-task-house')?.value;
+
+    if (filterObj) tasks = tasks.filter(t => t.object === filterObj);
+    if (filterHouse) tasks = tasks.filter(t => t.house === filterHouse);
 
     tasks = tasks.filter(t => {
       if (this.searchQuery && !t.title.toLowerCase().includes(this.searchQuery.toLowerCase())) return false;
@@ -240,6 +270,8 @@ export const TasksModule = {
     const link = document.getElementById('new-task-link').value.trim();
     const deadline = document.getElementById('new-task-deadline').value;
     const priority = document.getElementById('new-task-priority').value;
+    const object = document.getElementById('new-task-object').value;
+    const house = document.getElementById('new-task-house').value;
     let assigneeId = null;
     if (Auth.userRole === 'admin') {
       assigneeId = document.getElementById('new-task-assignee').value || null;
@@ -247,13 +279,15 @@ export const TasksModule = {
     store.addTaskTodo({
       id: Date.now().toString(),
       title, link: link || null, deadline: deadline || null,
-      priority: priority || 'normal', assigneeId,
+      priority: priority || 'normal', assigneeId, object, house,
       authorId: Auth.currentUser.uid,
       date: new Date().toISOString(),
       completed: false, subtasks: [], comments: []
     });
     document.getElementById('new-task-title').value = '';
     document.getElementById('new-task-link').value = '';
+    document.getElementById('new-task-object').value = '';
+    document.getElementById('new-task-house').value = '';
     this.render();
   },
   
@@ -301,7 +335,7 @@ export const TasksModule = {
       const u = Auth.usersList.find(x => x.id === task.assigneeId);
       if (u) { 
         assigneeUid = u.id;
-        assigneeLabel = `<span style="font-size: 0.85rem; background: var(--bg); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);">Исполнитель: 👤 ${escapeHTML(u.name || u.email)}</span>`; 
+        assigneeLabel = `<span style="font-size: 0.85rem; background: var(--bg); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);">Исполнитель: ${escapeHTML(u.name || u.email)}</span>`; 
       }
     }
 
@@ -325,8 +359,13 @@ export const TasksModule = {
             <input type="checkbox" class="modal-subtask-check" data-subid="${escapeHTML(sub.id)}" ${sub.done ? 'checked' : ''} style="margin-top:4px;">
             <div style="flex:1;">
               <strong style="font-size:0.95rem;">${idx + 1}. ${escapeHTML(sub.text)}</strong>
-              <button class="btn-text btn-add-subcomment" data-subid="${escapeHTML(sub.id)}">💬 Комментировать шаг</button>
-              ${isOwnerOrAdmin ? `<button class="btn-text btn-delete-subtask" data-subid="${escapeHTML(sub.id)}" style="color:var(--danger);">🗑</button>` : ''}
+              <button class="btn-text btn-add-subcomment" data-subid="${escapeHTML(sub.id)}">Комментировать шаг</button>
+              ${isOwnerOrAdmin ? `
+                <button class="btn-text btn-edit-subtask" data-subid="${escapeHTML(sub.id)}">Изменить</button>
+                ${idx > 0 ? `<button class="btn-text btn-move-up" data-subid="${escapeHTML(sub.id)}">Вверх</button>` : ''}
+                ${idx < task.subtasks.length - 1 ? `<button class="btn-text btn-move-down" data-subid="${escapeHTML(sub.id)}">Вниз</button>` : ''}
+                <button class="btn-text btn-delete-subtask" data-subid="${escapeHTML(sub.id)}" style="color:var(--danger);">Удалить</button>
+              ` : ''}
             </div>
           </div>
           <div style="margin-left: 24px; margin-top: 8px;">${renderComments(sub.comments || [])}</div>
@@ -340,7 +379,8 @@ export const TasksModule = {
           ${priorityBadge}
           <span class="deadline-badge">Срок: ${dateStr}</span>
           ${assigneeLabel}
-          ${task.link ? `<a href="${escapeHTML(task.link)}" target="_blank" class="task-link-badge">🔗 Открыть ссылку</a>` : ''}
+          ${task.link ? `<a href="${escapeHTML(task.link)}" target="_blank" class="task-link-badge">Открыть ссылку</a>` : ''}
+          ${isOwnerOrAdmin ? `<button class="btn-text btn-edit-task-main">Изменить название/срок</button>` : ''}
         </div>
         <button class="btn btn-icon btn-close-modal" style="position:absolute; top:20px; right:20px;">✕</button>
       </div>
@@ -365,7 +405,7 @@ export const TasksModule = {
       <div class="task-modal-footer">
         ${canDelete ? `<button class="btn btn-danger" id="modal-delete-task">Удалить задачу</button>` : `<div></div>`}
         <button class="btn ${task.completed ? '' : 'btn-success'}" id="modal-toggle-task">
-          ${task.completed ? 'Вернуть в работу' : '✅ Завершить задачу'}
+          ${task.completed ? 'Вернуть в работу' : 'Завершить задачу'}
         </button>
       </div>`;
   },
@@ -461,11 +501,48 @@ export const TasksModule = {
           }
         }
       }
+      if (e.target.classList.contains('btn-edit-subtask')) {
+        const sub = task.subtasks.find(s => s.id === e.target.dataset.subid);
+        if (sub) {
+          const newText = await CustomDialog.prompt(`Новое название шага:`, sub.text);
+          if (newText && newText !== sub.text) {
+            sub.text = newText;
+            updateTask();
+          }
+        }
+      }
+      if (e.target.classList.contains('btn-move-up') || e.target.classList.contains('btn-move-down')) {
+        const subId = e.target.dataset.subid;
+        const idx = task.subtasks.findIndex(s => s.id === subId);
+        if (idx !== -1) {
+          const isUp = e.target.classList.contains('btn-move-up');
+          if (isUp && idx > 0) {
+            [task.subtasks[idx - 1], task.subtasks[idx]] = [task.subtasks[idx], task.subtasks[idx - 1]];
+            updateTask();
+          } else if (!isUp && idx < task.subtasks.length - 1) {
+            [task.subtasks[idx + 1], task.subtasks[idx]] = [task.subtasks[idx], task.subtasks[idx + 1]];
+            updateTask();
+          }
+        }
+      }
       if (e.target.classList.contains('btn-delete-subtask')) {
         if (await CustomDialog.confirm('Удалить этот шаг?')) {
           task.subtasks = task.subtasks.filter(s => s.id !== e.target.dataset.subid);
           updateTask();
         }
+      }
+    });
+
+    modal.querySelector('.btn-edit-task-main')?.addEventListener('click', async () => {
+      const newTitle = await CustomDialog.prompt('Новое название задачи:', task.title);
+      if (newTitle !== null && newTitle.trim() !== '') {
+        task.title = newTitle.trim();
+        // Мы не можем сделать prompt для даты нативным путем, поэтому спросим вторым
+        const newDeadline = await CustomDialog.prompt('Новый дедлайн (в формате ГГГГ-ММ-ДД) или оставьте пустым:', task.deadline || '');
+        if (newDeadline !== null) {
+          task.deadline = newDeadline.trim() || null;
+        }
+        updateTask();
       }
     });
   }

@@ -273,6 +273,11 @@ export const Drawer = {
     else if (data.c3) { status = 's-dev'; text = 'Документы собраны'; }
     else if (data.c2) { status = 's-dev'; text = 'АОСР готов'; }
     else if (data.c1) { status = 's-dev'; text = 'Схемы готовы'; }
+    else if (itemsTotal > 0 && missing === 0) {
+      status = 's-ip'; text = 'Работы завершены';
+    } else if (itemsTotal > 0 && missing < itemsTotal) {
+      status = 's-ip'; text = 'В работе';
+    }
     
     if (itemsTotal > 0 && missing > 0 && status !== 's-done') {
       text += this.current.workType === 'mop' ? ` (${missing} пом.)` : ` (${missing} кв.)`;
