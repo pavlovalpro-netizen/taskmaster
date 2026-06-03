@@ -149,6 +149,26 @@ main {
 }
 .dark .overlay, .dark .modal-overlay { background: rgba(0,0,0,0.8); }
 
+/* Custom Dialog Modal */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  padding: 24px;
+  border-radius: var(--radius);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  z-index: 300;
+  min-width: 300px;
+  max-width: 90vw;
+  animation: scaleIn 0.2s ease-out;
+}
+@keyframes scaleIn {
+  from { transform: translate(-50%, -45%); opacity: 0; }
+  to { transform: translate(-50%, -50%); opacity: 1; }
+}
+
 /* Matrix Scroll */
 .matrix-scroll {
   overflow: auto;

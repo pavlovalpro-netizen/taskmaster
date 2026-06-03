@@ -51,7 +51,7 @@ export const Builder = {
         <!-- Поля для МОП -->
         <div class="form-group b-mop-field" style="flex:2;">
           <label>Зоны МОП (выберите из справочника)</label>
-          <div id="b-mop-zones-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; max-height:80px; overflow-y:auto; padding:4px; border:1px solid var(--border); border-radius:4px; background:var(--surface);"></div>
+          <div id="b-mop-zones-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; min-height:44px; max-height:120px; overflow-y:auto; padding:10px; border:1px solid var(--border); border-radius:4px; background:var(--surface);"></div>
         </div>
         
         <button class="btn btn-primary" id="btn-add-group" style="align-self:flex-end;">Добавить группу</button>
@@ -125,11 +125,16 @@ export const Builder = {
     document.getElementById('b-sec').innerHTML = store.getDict('sections').map(s => `<option>${escapeHTML(s)}</option>`).join('');
     
     const mopZones = store.getDict('mopZones');
-    document.getElementById('b-mop-zones-list').innerHTML = mopZones.map(z => `
-      <label style="display:flex; align-items:center; gap:4px; font-size:0.8rem; cursor:pointer; background:#f1f5f9; padding:2px 6px; border-radius:4px;">
-        <input type="checkbox" class="b-mop-check" value="${escapeHTML(z)}" checked> ${escapeHTML(z)}
-      </label>
-    `).join('');
+    const container = document.getElementById('b-mop-zones-list');
+    if (mopZones.length === 0) {
+      container.innerHTML = '<span style="color:var(--text-secondary); font-size:0.8rem; font-style:italic;">Справочник пуст. Добавьте зоны МОП во вкладке "Справочники".</span>';
+    } else {
+      container.innerHTML = mopZones.map(z => `
+        <label style="display:flex; align-items:center; gap:4px; font-size:0.8rem; cursor:pointer; background:var(--bg); padding:4px 8px; border-radius:4px; border: 1px solid var(--border);">
+          <input type="checkbox" class="b-mop-check" value="${escapeHTML(z)}" checked> ${escapeHTML(z)}
+        </label>
+      `).join('');
+    }
   },
   
   addGroup() {
