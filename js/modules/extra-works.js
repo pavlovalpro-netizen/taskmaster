@@ -68,7 +68,7 @@ export const ExtraWorksModule = {
         </select>
         <select class="input-ctrl" id="ew-filter-category" style="flex:1; min-width:120px;">
           <option value="">Категория (Все)</option>
-          <option value="Квартира" ${this.filterCategory === 'Квартира' ? 'selected' : ''}>Квартира</option>
+          <option value="Квартиры" ${this.filterCategory === 'Квартиры' ? 'selected' : ''}>Квартиры</option>
           <option value="МОП" ${this.filterCategory === 'МОП' ? 'selected' : ''}>МОП</option>
         </select>
         <select class="input-ctrl" id="ew-filter-object" style="flex:1; min-width:140px;">
@@ -138,7 +138,7 @@ export const ExtraWorksModule = {
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <span class="status-badge ${status}" style="white-space:nowrap;">${escapeHTML(text)}</span>
           <span style="font-size:0.75rem; background:${typeColor}; color:#1e293b; padding:2px 8px; border-radius:10px; font-weight:600;">${escapeHTML(w.type || '')}</span>
-          <span style="font-size:0.75rem; background:var(--bg); border:1px solid var(--border); padding:2px 8px; border-radius:10px; font-weight:600;">Тип: ${escapeHTML(w.category || 'Квартира')}</span>
+          <span style="font-size:0.75rem; background:var(--bg); border:1px solid var(--border); padding:2px 8px; border-radius:10px; font-weight:600;">Тип: ${escapeHTML(w.category || 'Квартиры')}</span>
           <strong style="flex:1; min-width:150px;">${escapeHTML(w.workName || 'Без названия')}</strong>
         </div>
         <div style="margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem; color:var(--text-secondary);">

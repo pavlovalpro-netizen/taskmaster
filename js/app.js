@@ -83,9 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
       store.on('tasksTodo', () => {
         if (document.getElementById('tab-tasks')?.classList.contains('active')) TasksModule.render();
       });
-      store.on('matrix', () => {
+      store.on('tasks', () => {
         if (document.getElementById('tab-matrix')?.classList.contains('active')) Matrix.loadMatrix();
         if (document.getElementById('tab-incomplete')?.classList.contains('active')) IncompleteModule.render();
+        if (document.getElementById('tab-extra-works')?.classList.contains('active')) ExtraWorksModule.renderList();
       });
 
       UI.switchTab('tasks', appModules);

@@ -339,7 +339,8 @@ main {
 #incomplete-table-container tr:hover td { background: rgba(15, 23, 42, 0.04); }
 
 .btn-danger { background: var(--danger); color: #fff; border: none; }
-.btn-danger:hover { opacity: 0.85; }
+.btn-danger:hover { background: #dc2626; opacity: 1; }
+.btn-text.btn-del-dict:hover { color: #dc2626 !important; text-decoration: none; }
 
 .ew-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px 18px; margin-bottom: 10px; transition: box-shadow 0.15s, border-color 0.15s; }
 .ew-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-color: var(--primary); }

@@ -44,7 +44,7 @@ export const Matrix = {
           <option value="mop">Только МОП</option>
         </select>
       </div>
-      <button class="btn" id="btn-undo">↩ Отменить</button>
+
       <button class="btn btn-excel" id="btn-export">📥 Excel</button>
     </div></div>
     <div class="matrix-scroll inverted-matrix" id="matrix-table-container">Выберите объект</div>`;
@@ -60,9 +60,7 @@ export const Matrix = {
       this.loadMatrix(); 
     };
     
-    document.getElementById('btn-undo').onclick = () => { 
-      store.undoLastTask() ? (toast('Отменено','warning'), this.loadMatrix()) : toast('Нет действий для отмены','info'); 
-    };
+    // undo button removed
     
     document.getElementById('btn-export').onclick = () => this.exportExcel();
     
@@ -172,9 +170,23 @@ export const Matrix = {
             
             const indicator = (totalEntities > 0 && missing > 0) ? `<span class="apt-indicator">${missing}</span>` : '';
             const borderStyle = fi === 0 ? 'border-left:2px solid var(--border);' : '';
-            const workType = isMop ? 'mop' : 'apts';
-            
-            rowsHtml += `<td style="${borderStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${workType}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}"><span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span></td>`;
+            let remarkBadge = '';
+            if (t.remarks && t.remarks.length > 0) {
+              const openCount = t.remarks.filter(r => r.status === 'Открыто').length;
+              if (openCount > 0) {
+                remarkBadge = `<div style="position:absolute; top:-6px; right:-6px; background:var(--danger); color:white; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2); z-index:10;">${openCount}</div>`;
+              }
+            }
+
+            let bgStyle = '';
+            if (t.status === 's-done') bgStyle = 'background: rgba(16, 185, 129, 0.15);'; // success
+            else if (t.status === 's-remark') bgStyle = 'background: rgba(239, 68, 68, 0.15);'; // danger
+            else if (t.status === 's-ip' || t.status === 's-dev') bgStyle = 'background: rgba(245, 158, 11, 0.15);'; // warning
+
+            rowsHtml += `<td style="position:relative; ${borderStyle} ${bgStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${workType}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}">
+              ${remarkBadge}
+              <span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span>
+            </td>`;
           });
         });
         rowsHtml += '</tr>';

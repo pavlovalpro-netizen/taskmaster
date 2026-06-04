@@ -9,6 +9,7 @@ export const Dict = {
       <div style="display:flex; gap:8px; margin:12px 0;">
         <button class="btn" id="btn-template">Шаблон Excel</button>
         <button class="btn btn-primary" id="btn-import">Импорт Excel</button>
+        <button class="btn btn-danger" id="btn-clean-dict">Очистить неиспользуемые</button>
         <input type="file" id="excelInput" accept=".xlsx" hidden>
       </div>
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
@@ -43,6 +44,20 @@ export const Dict = {
     
     document.getElementById('btn-import').onclick = () => document.getElementById('excelInput').click();
     document.getElementById('excelInput').onchange = (e) => this.importExcel(e);
+    
+    document.getElementById('btn-clean-dict').onclick = async () => {
+      if (await CustomDialog.confirm("Удалить все неиспользуемые пункты из всех справочников?")) {
+        let count = 0;
+        ['objects','houses','sections','works','worksMop','mopZones'].forEach(cat => {
+          const arr = store.getDict(cat);
+          const filtered = arr.filter(val => this.isItemInUse(cat, val));
+          count += (arr.length - filtered.length);
+          if (arr.length !== filtered.length) store.setDict(cat, filtered);
+        });
+        this.refreshLists();
+        toast(`Очищено ${count} неиспользуемых элементов.`, 'success');
+      }
+    };
     
     document.querySelectorAll('[data-action="add"]').forEach(btn => {
       btn.onclick = () => {

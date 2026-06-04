@@ -249,6 +249,7 @@ export const Drawer = {
     const data = store.getTask(this.current.key) || {};
     ['c1','c2','c3','c4','c5','c6','c7','c8','c9'].forEach(c => data[c] = document.getElementById(c)?.checked || false);
     ['l1','l2','l3','l4','l5','lFinal','lMain'].forEach(l => data[l] = document.getElementById(l)?.value || '');
+    data.remarks = this.current.remarks || [];
     
     const doneArr = Array.from(document.querySelectorAll('.apt-chk:checked')).map(cb => {
       return this.current.workType === 'mop' ? cb.value : parseInt(cb.value);

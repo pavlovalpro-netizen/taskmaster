@@ -7,6 +7,8 @@ export const TasksModule = {
   currentSort: 'date-desc',
   searchQuery: '',
   filterByAssignee: null, // null = все, строка = uid инженера
+  filterObject: '',
+  filterHouse: '',
   
   render() {
     const isAdmin = Auth.userRole === 'admin';
@@ -23,8 +25,8 @@ export const TasksModule = {
     let housesOptions = '<option value="">Все дома</option>';
     const objs = store.getDict('objects');
     const houses = store.getDict('houses');
-    if (objs.length) objectsOptions += objs.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
-    if (houses.length) housesOptions += houses.map(h => `<option value="${escapeHTML(h)}">${escapeHTML(h)}</option>`).join('');
+    if (objs.length) objectsOptions += objs.map(o => `<option value="${escapeHTML(o)}" ${this.filterObject === o ? 'selected' : ''}>${escapeHTML(o)}</option>`).join('');
+    if (houses.length) housesOptions += houses.map(h => `<option value="${escapeHTML(h)}" ${this.filterHouse === h ? 'selected' : ''}>${escapeHTML(h)}</option>`).join('');
 
     // Блок фильтров по инженерам (только для Админа)
     let engineerFiltersHtml = '';
@@ -133,11 +135,8 @@ export const TasksModule = {
       tasks = tasks.filter(t => t.assigneeId === this.filterByAssignee);
     }
 
-    const filterObj = document.getElementById('filter-task-object')?.value;
-    const filterHouse = document.getElementById('filter-task-house')?.value;
-
-    if (filterObj) tasks = tasks.filter(t => t.object === filterObj);
-    if (filterHouse) tasks = tasks.filter(t => t.house === filterHouse);
+    if (this.filterObject) tasks = tasks.filter(t => t.object === this.filterObject);
+    if (this.filterHouse) tasks = tasks.filter(t => t.house === this.filterHouse);
 
     tasks = tasks.filter(t => {
       if (this.searchQuery && !t.title.toLowerCase().includes(this.searchQuery.toLowerCase())) return false;
@@ -196,6 +195,15 @@ export const TasksModule = {
     // Фильтры по исполнителю
     document.querySelectorAll('.filter-btn[data-assignee]').forEach(btn => {
       btn.onclick = () => { this.filterByAssignee = btn.dataset.assignee || null; this.render(); };
+    });
+
+    document.getElementById('filter-task-object')?.addEventListener('change', (e) => {
+      this.filterObject = e.target.value;
+      this.render();
+    });
+    document.getElementById('filter-task-house')?.addEventListener('change', (e) => {
+      this.filterHouse = e.target.value;
+      this.render();
     });
 
     document.getElementById('tasks-search').oninput = (e) => {

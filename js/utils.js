@@ -69,12 +69,12 @@ export const CustomDialog = {
         </div>
       `);
 
-      document.getElementById('dialog-cancel').onclick = () => {
+      modal.querySelector('#dialog-cancel').onclick = () => {
         this.close(overlay, modal);
         resolve(false);
       };
       
-      document.getElementById('dialog-ok').onclick = () => {
+      modal.querySelector('#dialog-ok').onclick = () => {
         this.close(overlay, modal);
         resolve(true);
       };
@@ -93,15 +93,15 @@ export const CustomDialog = {
         </div>
       `);
 
-      const input = document.getElementById('dialog-input');
+      const input = modal.querySelector('#dialog-input');
       input.focus();
 
-      document.getElementById('dialog-cancel').onclick = () => {
+      modal.querySelector('#dialog-cancel').onclick = () => {
         this.close(overlay, modal);
         resolve(null);
       };
       
-      document.getElementById('dialog-ok').onclick = () => {
+      modal.querySelector('#dialog-ok').onclick = () => {
         this.close(overlay, modal);
         resolve(input.value.trim());
       };

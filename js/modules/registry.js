@@ -65,6 +65,19 @@ export const Registry = {
   },
   
   async delete(id) {
+    const hasTasks = Object.keys(store.db.tasks || {}).some(key => {
+      if (key.startsWith(id + '_')) {
+        const t = store.db.tasks[key];
+        return t.status !== 's-none';
+      }
+      return false;
+    });
+
+    if (hasTasks) {
+      import('../utils.js').then(({ toast }) => toast('В объекте есть начатые работы! Удаление запрещено.', 'error'));
+      return;
+    }
+
     if (await CustomDialog.confirm('Удалить этот объект из реестра?')) { 
       store.deleteObject(id); 
       this.render(); 
