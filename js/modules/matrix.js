@@ -12,7 +12,7 @@ export const Matrix = {
     const filterStatusOpts = [
       'Не начато', 'Схемы готовы', 'АОСР готов', 'Документы собраны',
       'У технадзора', 'Замечания', 'Исправлено', 'Подписано',
-      'Реестр подписан', 'В архиве'
+      'Реестр подписан', 'В архиве', 'В работе', 'Работы завершены'
     ].map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
 
     document.getElementById('tab-matrix').innerHTML = `
@@ -271,10 +271,14 @@ export const Matrix = {
       let matchStatus = true;
       if (filterStatus && this.viewMode === 'detail') {
         const cells = Array.from(tr.querySelectorAll('td[data-status]'));
-        matchStatus = cells.some(td => td.dataset.status === filterStatus);
+        matchStatus = cells.some(td => {
+          const cellStatus = (td.dataset.status || '').split(' (')[0];
+          return cellStatus === filterStatus;
+        });
         
         cells.forEach(td => {
-          if (td.dataset.status !== filterStatus) {
+          const cellStatus = (td.dataset.status || '').split(' (')[0];
+          if (cellStatus !== filterStatus) {
             td.style.opacity = '0.2';
           } else {
             td.style.opacity = '1';
