@@ -9,6 +9,7 @@ export const TasksModule = {
   filterByAssignee: null, // null = все, строка = uid инженера
   filterObject: '',
   filterHouse: '',
+  filterSection: '',
   
   render() {
     const isAdmin = Auth.userRole === 'admin';
@@ -23,10 +24,13 @@ export const TasksModule = {
 
     let objectsOptions = '<option value="">Все объекты</option>';
     let housesOptions = '<option value="">Все дома</option>';
+    let sectionsOptions = '<option value="">Все секции</option>';
     const objs = store.getDict('objects');
     const houses = store.getDict('houses');
+    const sections = store.getDict('sections');
     if (objs.length) objectsOptions += objs.map(o => `<option value="${escapeHTML(o)}" ${this.filterObject === o ? 'selected' : ''}>${escapeHTML(o)}</option>`).join('');
     if (houses.length) housesOptions += houses.map(h => `<option value="${escapeHTML(h)}" ${this.filterHouse === h ? 'selected' : ''}>${escapeHTML(h)}</option>`).join('');
+    if (sections.length) sectionsOptions += sections.map(s => `<option value="${escapeHTML(s)}" ${this.filterSection === s ? 'selected' : ''}>${escapeHTML(s)}</option>`).join('');
 
     // Блок фильтров по инженерам (только для Админа)
     let engineerFiltersHtml = '';
@@ -56,6 +60,10 @@ export const TasksModule = {
           <option value="">Без дома</option>
           ${houses.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}
         </select>
+        <select id="new-task-section" class="input-ctrl" style="flex: 1; min-width: 120px;">
+          <option value="">Без секции</option>
+          ${sections.map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('')}
+        </select>
         <input id="new-task-link" class="input-ctrl" placeholder="Ссылка (необязательно)" style="flex: 1; min-width: 150px;">
         <input id="new-task-deadline" class="input-ctrl" type="date" style="width: auto;">
         <select id="new-task-priority" class="input-ctrl" style="width: auto;">
@@ -80,6 +88,10 @@ export const TasksModule = {
         <h4 style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Дом</h4>
         <select id="filter-task-house" class="input-ctrl" style="margin-bottom: 12px; padding: 6px 10px; font-size: 0.8rem;">
           ${housesOptions}
+        </select>
+        <h4 style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Секция</h4>
+        <select id="filter-task-section" class="input-ctrl" style="margin-bottom: 12px; padding: 6px 10px; font-size: 0.8rem;">
+          ${sectionsOptions}
         </select>
 
         <h4 style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Статус</h4>
@@ -137,6 +149,7 @@ export const TasksModule = {
 
     if (this.filterObject) tasks = tasks.filter(t => t.object === this.filterObject);
     if (this.filterHouse) tasks = tasks.filter(t => t.house === this.filterHouse);
+    if (this.filterSection) tasks = tasks.filter(t => t.section === this.filterSection);
 
     tasks = tasks.filter(t => {
       if (this.searchQuery && !t.title.toLowerCase().includes(this.searchQuery.toLowerCase())) return false;
@@ -205,6 +218,10 @@ export const TasksModule = {
       this.filterHouse = e.target.value;
       this.render();
     });
+    document.getElementById('filter-task-section')?.addEventListener('change', (e) => {
+      this.filterSection = e.target.value;
+      this.render();
+    });
 
     document.getElementById('tasks-search').oninput = (e) => {
       this.searchQuery = e.target.value.trim();
@@ -256,12 +273,25 @@ export const TasksModule = {
     let commentsTotal = task.comments ? task.comments.length : 0;
     if (task.subtasks) task.subtasks.forEach(sub => { if (sub.comments) commentsTotal += sub.comments.length; });
 
+    let locationLabel = '';
+    const locParts = [];
+    if (task.object) locParts.push(task.object);
+    if (task.house) locParts.push(task.house);
+    if (task.section) locParts.push(task.section);
+    if (locParts.length > 0) {
+      locationLabel = `<span class="task-loc-badge" style="font-size:0.75rem; background:var(--bg); border:1px solid var(--border); padding:2px 6px; border-radius:4px; color:var(--text-secondary);">${escapeHTML(locParts.join(' / '))}</span>`;
+    }
+
+    const isEngineer = Auth.userRole === 'engineer';
+    const checkboxDisabled = isEngineer ? 'disabled' : '';
+    const reviewBadge = task.reviewRequested ? `<span class="priority-badge" style="background:var(--warning); color:#1e293b;">На проверке</span>` : '';
+
     return `
     <div class="task-item compact-task ${task.completed ? 'completed' : ''}" style="cursor: pointer;">
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; width: 100%;">
-        <input type="checkbox" class="task-complete" data-id="${escapeHTML(task.id)}" ${task.completed ? 'checked' : ''}>
+        <input type="checkbox" class="task-complete" data-id="${escapeHTML(task.id)}" ${task.completed ? 'checked' : ''} ${checkboxDisabled}>
         <strong class="task-title" style="font-size: 1rem;">${escapeHTML(task.title)}</strong>
-        ${priorityBadge}${deadlineBadge}${assigneeLabel}${personalBadge}
+        ${priorityBadge}${deadlineBadge}${reviewBadge}${locationLabel}${assigneeLabel}${personalBadge}
         <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
           ${task.link ? `<a href="${escapeHTML(task.link)}" target="_blank" class="task-link-badge">🔗 Ссылка</a>` : ''}
           <span style="font-size: 0.8rem; color: var(--text-secondary);">📁 ${subtasksDone}/${subtasksTotal}</span>
@@ -280,6 +310,7 @@ export const TasksModule = {
     const priority = document.getElementById('new-task-priority').value;
     const object = document.getElementById('new-task-object').value;
     const house = document.getElementById('new-task-house').value;
+    const section = document.getElementById('new-task-section').value;
     let assigneeId = null;
     if (Auth.userRole === 'admin') {
       assigneeId = document.getElementById('new-task-assignee').value || null;
@@ -287,23 +318,30 @@ export const TasksModule = {
     store.addTaskTodo({
       id: Date.now().toString(),
       title, link: link || null, deadline: deadline || null,
-      priority: priority || 'normal', assigneeId, object, house,
+      priority: priority || 'normal', assigneeId, object, house, section,
       authorId: Auth.currentUser.uid,
       date: new Date().toISOString(),
-      completed: false, subtasks: [], comments: []
+      completed: false, reviewRequested: false, subtasks: [], comments: []
     });
     document.getElementById('new-task-title').value = '';
     document.getElementById('new-task-link').value = '';
     document.getElementById('new-task-object').value = '';
     document.getElementById('new-task-house').value = '';
+    document.getElementById('new-task-section').value = '';
     this.render();
   },
   
   toggleTask(id, completed) {
+    if (Auth.userRole === 'engineer') {
+      toast('Только администратор может закрывать задачи', 'error');
+      this.render();
+      return;
+    }
     const tasks = store.getTasksTodo();
     const task = tasks.find(t => t.id === id);
     if (!task) return;
     task.completed = completed;
+    task.reviewRequested = false;
     store.updateTaskTodo(id, task);
     if (completed && task.authorId !== Auth.currentUser.uid) {
       store.logActivity("выполнил задачу", task.title);
@@ -380,12 +418,49 @@ export const TasksModule = {
         </div>`).join('');
     };
 
+    let locationLabel = '';
+    const locParts = [];
+    if (task.object) locParts.push(task.object);
+    if (task.house) locParts.push(task.house);
+    if (task.section) locParts.push(task.section);
+    if (locParts.length > 0) {
+      locationLabel = `<span class="task-loc-badge" style="font-size:0.75rem; background:var(--bg); border:1px solid var(--border); padding:4px 8px; border-radius:4px; color:var(--text-secondary);">${escapeHTML(locParts.join(' / '))}</span>`;
+    }
+
+    const reviewBadge = task.reviewRequested ? `<span class="priority-badge" style="background:var(--warning); color:#1e293b;">На проверке</span>` : '';
+
+    let footerHtml = '';
+    if (Auth.userRole === 'admin') {
+      if (task.reviewRequested) {
+        footerHtml = `
+          <div>
+            <button class="btn btn-danger" id="modal-reject-task" style="margin-right:8px;">❌ Отклонить выполнение</button>
+            <button class="btn btn-success" id="modal-approve-task">✅ Утвердить и завершить</button>
+          </div>`;
+      } else {
+        footerHtml = `
+          <button class="btn ${task.completed ? '' : 'btn-success'}" id="modal-toggle-task">
+            ${task.completed ? 'Вернуть в работу' : 'Завершить задачу'}
+          </button>`;
+      }
+    } else { // engineer
+      if (task.completed) {
+        footerHtml = `<span style="color:var(--success); font-weight:bold;">✅ Задача завершена администратором</span>`;
+      } else if (task.reviewRequested) {
+        footerHtml = `<span style="color:var(--warning); font-weight:bold;">⏳ На проверке у администратора</span>`;
+      } else {
+        footerHtml = `<button class="btn btn-warning" id="modal-request-review-task">📩 Отправить на проверку</button>`;
+      }
+    }
+
     return `
       <div class="task-modal-header">
         <h2 style="font-size: 1.4rem; margin-bottom: 8px;">${escapeHTML(task.title)}</h2>
         <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
           ${priorityBadge}
           <span class="deadline-badge">Срок: ${dateStr}</span>
+          ${reviewBadge}
+          ${locationLabel}
           ${assigneeLabel}
           ${task.link ? `<a href="${escapeHTML(task.link)}" target="_blank" class="task-link-badge">Открыть ссылку</a>` : ''}
           ${isOwnerOrAdmin ? `<button class="btn-text btn-edit-task-main">Изменить название/срок</button>` : ''}
@@ -412,9 +487,7 @@ export const TasksModule = {
       </div>
       <div class="task-modal-footer">
         ${canDelete ? `<button class="btn btn-danger" id="modal-delete-task">Удалить задачу</button>` : `<div></div>`}
-        <button class="btn ${task.completed ? '' : 'btn-success'}" id="modal-toggle-task">
-          ${task.completed ? 'Вернуть в работу' : 'Завершить задачу'}
-        </button>
+        ${footerHtml}
       </div>`;
   },
 
@@ -436,14 +509,57 @@ export const TasksModule = {
       }
     });
 
-    modal.querySelector('#modal-toggle-task').onclick = () => {
-      task.completed = !task.completed;
-      store.updateTaskTodo(task.id, task);
-      if (task.completed && task.authorId !== Auth.currentUser.uid) {
-        store.logActivity("выполнил задачу", task.title);
-      }
-      updateTask();
-    };
+    const toggleBtn = modal.querySelector('#modal-toggle-task');
+    if (toggleBtn) {
+      toggleBtn.onclick = () => {
+        task.completed = !task.completed;
+        task.reviewRequested = false;
+        store.updateTaskTodo(task.id, task);
+        if (task.completed && task.authorId !== Auth.currentUser.uid) {
+          store.logActivity("выполнил задачу", task.title);
+        }
+        updateTask();
+      };
+    }
+
+    const approveBtn = modal.querySelector('#modal-approve-task');
+    if (approveBtn) {
+      approveBtn.onclick = () => {
+        task.completed = true;
+        task.reviewRequested = false;
+        store.updateTaskTodo(task.id, task);
+        store.logActivity("утвердил выполнение задачи", task.title);
+        if (assigneeId) {
+          store.notifyUser(assigneeId, `Администратор утвердил выполнение задачи`, task.title);
+        }
+        updateTask();
+      };
+    }
+
+    const rejectBtn = modal.querySelector('#modal-reject-task');
+    if (rejectBtn) {
+      rejectBtn.onclick = () => {
+        task.completed = false;
+        task.reviewRequested = false;
+        store.updateTaskTodo(task.id, task);
+        store.logActivity("отклонил выполнение задачи", task.title);
+        if (assigneeId) {
+          store.notifyUser(assigneeId, `Администратор отклонил выполнение задачи`, task.title);
+        }
+        updateTask();
+      };
+    }
+
+    const reqReviewBtn = modal.querySelector('#modal-request-review-task');
+    if (reqReviewBtn) {
+      reqReviewBtn.onclick = () => {
+        task.reviewRequested = true;
+        store.updateTaskTodo(task.id, task);
+        store.logActivity("отправил задачу на проверку", task.title);
+        toast('Задача отправлена на проверку администратору', 'success');
+        updateTask();
+      };
+    }
 
     const addSubtaskBtn = modal.querySelector('#modal-add-subtask');
     const addSubtaskInput = modal.querySelector('#modal-new-subtask-input');

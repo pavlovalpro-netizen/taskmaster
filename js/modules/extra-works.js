@@ -326,22 +326,32 @@ export const ExtraWorksModule = {
         </div>
         <div class="drawer-section">
           <label>Вид работы</label>
-          <input class="input-ctrl" id="ew-workName" value="${escapeHTML(w.workName || '')}" placeholder="Можно выбрать из справочника или ввести вручную" list="ew-works-list">
-          <datalist id="ew-works-list">${works.map(wk => `<option value="${escapeHTML(wk)}">`).join('')}</datalist>
+          <select class="input-ctrl" id="ew-workName">
+            <option value="">— Выберите работу —</option>
+            ${works.map(wk => `<option value="${escapeHTML(wk)}" ${w.workName === wk ? 'selected' : ''}>${escapeHTML(wk)}</option>`).join('')}
+          </select>
         </div>
         <div class="drawer-section">
           <label>Объект</label>
-          <input class="input-ctrl" id="ew-objectName" value="${escapeHTML(w.objectName || '')}" placeholder="Название объекта" list="ew-obj-list">
-          <datalist id="ew-obj-list">${objects.map(o => `<option value="${escapeHTML(o.name)}">`).join('')}</datalist>
+          <select class="input-ctrl" id="ew-objectName">
+            <option value="">— Выберите объект —</option>
+            ${store.getDict('objects').map(o => `<option value="${escapeHTML(o)}" ${w.objectName === o ? 'selected' : ''}>${escapeHTML(o)}</option>`).join('')}
+          </select>
         </div>
         <div class="form-row">
           <div class="form-group" style="flex:1;">
             <label>Дом</label>
-            <input class="input-ctrl" id="ew-house" value="${escapeHTML(w.house || '')}" placeholder="Дом">
+            <select class="input-ctrl" id="ew-house">
+              <option value="">— Выберите дом —</option>
+              ${store.getDict('houses').map(h => `<option value="${escapeHTML(h)}" ${w.house === h ? 'selected' : ''}>${escapeHTML(h)}</option>`).join('')}
+            </select>
           </div>
           <div class="form-group" style="flex:1;">
             <label>Секция</label>
-            <input class="input-ctrl" id="ew-section" value="${escapeHTML(w.section || '')}" placeholder="Секция">
+            <select class="input-ctrl" id="ew-section">
+              <option value="">— Выберите секцию —</option>
+              ${store.getDict('sections').map(s => `<option value="${escapeHTML(s)}" ${w.section === s ? 'selected' : ''}>${escapeHTML(s)}</option>`).join('')}
+            </select>
           </div>
         </div>
         <div class="form-row">

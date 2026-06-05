@@ -183,7 +183,7 @@ export const Matrix = {
             else if (t.status === 's-remark') bgStyle = 'background: rgba(239, 68, 68, 0.15);'; // danger
             else if (t.status === 's-ip' || t.status === 's-dev') bgStyle = 'background: rgba(245, 158, 11, 0.15);'; // warning
 
-            rowsHtml += `<td style="position:relative; ${borderStyle} ${bgStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${workType}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}">
+            rowsHtml += `<td style="position:relative; ${borderStyle} ${bgStyle}" data-key="${escapeHTML(config.id)}::${gi}::${f.num}::${globalIdx}::${type}" data-workname="${escapeHTML(w)}" data-status="${escapeHTML(t.text)}">
               ${remarkBadge}
               <span class="status-badge ${t.status}">${escapeHTML(t.text)}${indicator}</span>
             </td>`;

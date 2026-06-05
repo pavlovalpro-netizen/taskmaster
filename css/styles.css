@@ -483,3 +483,86 @@ main {
   background: var(--surface);
   outline: none;
 }
+
+/* Mobile Adaptation (Tasks tab only) */
+@media (max-width: 767px) {
+  #nav-tabs {
+    display: none !important;
+  }
+  .tab-content {
+    display: none !important;
+  }
+  #tab-tasks {
+    display: flex !important;
+  }
+  #tab-tasks > div {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .tasks-sidebar {
+    width: 100% !important;
+    display: flex;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+  .tasks-sidebar h4 {
+    width: 100%;
+    margin: 4px 0 2px !important;
+  }
+  .tasks-sidebar select {
+    margin-bottom: 0 !important;
+    flex: 1 1 45%;
+  }
+  .tasks-sidebar .filter-list {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 4px;
+    width: 100%;
+  }
+  .tasks-sidebar .filter-btn {
+    padding: 6px 10px !important;
+    font-size: 0.8rem;
+    flex: 1 1 auto;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  #tab-tasks .form-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  #tab-tasks .form-row > * {
+    width: 100% !important;
+    flex: none !important;
+  }
+  .compact-task {
+    padding: 10px 12px !important;
+  }
+  .compact-task > div {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  .compact-task > div > .task-title {
+    width: 100%;
+  }
+  .compact-task > div > div {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .task-modal-card {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+}

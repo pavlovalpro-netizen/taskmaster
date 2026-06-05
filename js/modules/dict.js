@@ -77,54 +77,67 @@ export const Dict = {
       };
     });
 
-    document.getElementById('tab-dict').addEventListener('click', async (e) => {
-      if (e.target.classList.contains('btn-del-dict')) {
-        const cat = e.target.dataset.cat;
-        const val = e.target.dataset.val;
-        if (this.isItemInUse(cat, val)) {
-          return toast(`Элемент "${val}" используется в реестре! Удаление запрещено.`, 'error');
+    if (!document.getElementById('tab-dict').dataset.listenerAdded) {
+      document.getElementById('tab-dict').addEventListener('click', async (e) => {
+        if (e.target.classList.contains('btn-del-dict')) {
+          const cat = e.target.dataset.cat;
+          const val = e.target.dataset.val;
+          if (this.isItemInUse(cat, val)) {
+            return toast(`Элемент "${val}" используется! Удаление запрещено.`, 'error');
+          }
+          if (await CustomDialog.confirm(`Точно удалить "${val}"?`)) {
+            let arr = store.getDict(cat);
+            arr = arr.filter(i => i !== val);
+            store.setDict(cat, arr);
+            this.refreshLists();
+          }
         }
-        if (await CustomDialog.confirm(`Точно удалить "${val}"?`)) {
-          let arr = store.getDict(cat);
-          arr = arr.filter(i => i !== val);
-          store.setDict(cat, arr);
-          this.refreshLists();
-        }
-      }
-    });
+      });
+      document.getElementById('tab-dict').dataset.listenerAdded = 'true';
+    }
   },
   
   isItemInUse(cat, val) {
+    // 1. Проверяем Объекты в реестре
     const objs = store.getObjects();
-    if (objs.length === 0) return false;
-    
     for (let o of objs) {
       if (cat === 'objects' && o.name === val) return true;
       if (cat === 'houses' && o.house === val) return true;
       if (cat === 'sections' && o.section === val) return true;
-      
-      if (cat === 'works' || cat === 'worksMop' || cat === 'mopZones') {
-        // Мы проверяем сохраненные задачи (store.db.tasks)
-        const tasksKeys = Object.keys(store.db.tasks || {});
-        // Формат ключа cfgId_gi_fnum_globalIdx.
-        // Чтобы точно знать, используется ли работа, можно проверить:
-        // А используется ли она вообще в store.db.tasks Todo?
-      }
+    }
+
+    // 2. Проверяем Ежедневные задачи (tasksTodo)
+    const tasksTodo = store.db.tasksTodo || [];
+    for (let t of tasksTodo) {
+      if (cat === 'objects' && t.object === val) return true;
+      if (cat === 'houses' && t.house === val) return true;
+      if (cat === 'sections' && t.section === val) return true;
+    }
+
+    // 3. Проверяем Доп. работы / Рекламации (extraWorks)
+    const extraWorks = store.getExtraWorks();
+    for (let ew of extraWorks) {
+      if (cat === 'objects' && ew.objectName === val) return true;
+      if (cat === 'houses' && ew.house === val) return true;
+      if (cat === 'sections' && ew.section === val) return true;
+      if ((cat === 'works' || cat === 'worksMop') && ew.workName === val) return true;
     }
     
-    // Глубокая проверка по задачам
+    // 4. Проверяем Матрицу задач
     if (cat === 'works' || cat === 'worksMop') {
       const worksApts = store.getDict('works');
       const worksMop = store.getDict('worksMop');
       const combined = [...worksApts, ...worksMop];
       const targetIdx = combined.indexOf(val);
-      if (targetIdx === -1) return false; // Если его нет, значит не юзается
-      const tasksKeys = Object.keys(store.db.tasks || {});
-      for (let key of tasksKeys) {
-        if (key.endsWith(`_${targetIdx}`)) return true;
+      if (targetIdx !== -1) {
+        const tasksKeys = Object.keys(store.db.tasks || {});
+        for (let key of tasksKeys) {
+          if (key.endsWith(`_${targetIdx}`)) return true;
+        }
       }
     }
 
+    // 5. Проверяем зоны МОП
     if (cat === 'mopZones') {
       for (let o of objs) {
         if (o.groups) {
