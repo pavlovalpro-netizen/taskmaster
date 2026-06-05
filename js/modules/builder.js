@@ -96,7 +96,7 @@ export const Builder = {
         const min = Math.min(...g.floors.map(f => f.num));
         const max = Math.max(...g.floors.map(f => f.num));
         document.getElementById('b-floors').value = `${min}-${max}`;
-        document.getElementById('b-apts').value = g.aptsCount;
+        document.getElementById('b-apts').value = g.aptsCount !== undefined ? g.aptsCount : (g.floors?.[0]?.apts?.length || 0);
         if (g.floors.length > 0 && g.floors[0].apts.length > 0) {
            document.getElementById('b-start').value = g.floors[0].apts[0];
         }

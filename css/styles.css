@@ -116,8 +116,8 @@ main {
   border: none; 
 }
 .btn-primary:hover { 
-  background: var(--primary-hover); 
-  color: var(--surface);
+  background: var(--primary-hover) !important; 
+  color: var(--surface) !important;
 }
 
 .btn-icon {
@@ -131,7 +131,7 @@ main {
 
 .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
 .btn-excel { border-color: #10b981; color: #10b981; }
-.btn-excel:hover { background: #10b981; color: #fff; }
+.btn-excel:hover { background: #10b981 !important; color: #fff !important; }
 
 .hidden { display: none !important; }
 
@@ -307,6 +307,9 @@ main {
 .btn-text:hover { color: var(--primary); text-decoration: underline; }
 
 .btn-success { background: var(--success); color: #fff; border: none; }
+.btn-success:hover { background: #047857 !important; color: #fff !important; }
+.btn-warning { background: var(--warning); color: #fff; border: none; }
+.btn-warning:hover { background: #b45309 !important; color: #fff !important; }
 
 /* Compact Task Line clamp */
 .task-title {
@@ -339,7 +342,7 @@ main {
 #incomplete-table-container tr:hover td { background: rgba(15, 23, 42, 0.04); }
 
 .btn-danger { background: var(--danger); color: #fff; border: none; }
-.btn-danger:hover { background: #dc2626; opacity: 1; }
+.btn-danger:hover { background: #dc2626 !important; color: #fff !important; opacity: 1; }
 .btn-text.btn-del-dict:hover { color: #dc2626 !important; text-decoration: none; }
 
 .ew-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px 18px; margin-bottom: 10px; transition: box-shadow 0.15s, border-color 0.15s; }

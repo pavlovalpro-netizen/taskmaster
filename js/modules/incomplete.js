@@ -76,7 +76,7 @@ export const IncompleteModule = {
             if (t.status === 's-done' && t.text === 'В архиве') return;
             // Также пропускаем если вообще не начато и ни одной квартиры — необязательный ряд
             // (Оставляем только те, у которых хоть что-то сделано ИЛИ есть квартиры)
-            if (f.apts.length === 0 && t.status === 's-none') return;
+            if ((f.apts || []).length === 0 && t.status === 's-none') return;
 
               rows.push({
                 key,
