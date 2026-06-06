@@ -7,14 +7,21 @@ function parseFloorRange(input) {
   const result = new Set();
   const parts = input.split(',').map(s => s.trim()).filter(Boolean);
   for (const part of parts) {
-    if (part.includes('-')) {
-      const [start, end] = part.split('-').map(Number);
+    const rangeMatch = part.match(/^(-?\d+)-(-?\d+)$/);
+    if (rangeMatch) {
+      const start = Number(rangeMatch[1]);
+      const end = Number(rangeMatch[2]);
       if (!isNaN(start) && !isNaN(end)) {
-        for (let i = Math.min(start, end); i <= Math.max(start, end); i++) result.add(i);
+        for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+          result.add(i);
+        }
       }
     } else {
-      const n = Number(part);
-      if (!isNaN(n)) result.add(n);
+      const singleMatch = part.match(/^(-?\d+)$/);
+      if (singleMatch) {
+        const n = Number(singleMatch[1]);
+        if (!isNaN(n)) result.add(n);
+      }
     }
   }
   return result;
@@ -25,8 +32,8 @@ export const Drawer = {
   
   open(configId, work, floorNum, floorObj, groupIdx, workIdx, config, workType = 'apts') {
     const key = `${configId}_${groupIdx}_${floorNum}_${workIdx}`;
-    this.current = { key, work, floorNum, floorObj, groupIdx, workIdx, config, workType };
     const t = store.getTask(key);
+    this.current = { key, work, floorNum, floorObj, groupIdx, workIdx, config, workType, remarks: t.remarks || [] };
     
     // Строим диапазон этажей по умолчанию для группы
     const group = config.groups[groupIdx];
@@ -92,13 +99,15 @@ export const Drawer = {
           </div>
         </div>
         
-        <button class="btn btn-primary" id="btn-save-drawer" style="margin-top: 16px; width: 100%;">💾 Сохранить</button>
       </div>
       
       <div id="drawer-remarks-content" class="hidden">
         <button class="btn" id="btn-add-remark">+ Добавить замечание</button>
         <div class="remark-history" id="remark-list">${this.renderRemarks(t.remarks || [])}</div>
       </div>
+    </div>
+    <div style="padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg); display: flex; gap: 8px;">
+      <button class="btn btn-primary" id="btn-save-drawer" style="width: 100%;">💾 Сохранить</button>
     </div>`;
     
     document.getElementById('drawer').classList.add('open');

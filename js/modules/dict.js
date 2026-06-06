@@ -1,5 +1,6 @@
 import { store } from '../store.js';
 import { toast, escapeHTML, CustomDialog } from '../utils.js';
+import { Auth } from '../auth.js';
 
 export const Dict = {
   render() {
@@ -82,14 +83,27 @@ export const Dict = {
         if (e.target.classList.contains('btn-del-dict')) {
           const cat = e.target.dataset.cat;
           const val = e.target.dataset.val;
-          if (this.isItemInUse(cat, val)) {
-            return toast(`Элемент "${val}" используется! Удаление запрещено.`, 'error');
-          }
-          if (await CustomDialog.confirm(`Точно удалить "${val}"?`)) {
-            let arr = store.getDict(cat);
-            arr = arr.filter(i => i !== val);
-            store.setDict(cat, arr);
-            this.refreshLists();
+          const inUse = this.isItemInUse(cat, val);
+          const isAdmin = Auth.userRole === 'admin';
+
+          if (inUse) {
+            if (isAdmin) {
+              if (await CustomDialog.confirm(`Внимание! Элемент "${val}" используется в связанных объектах, задачах или доп. работах. Если вы удалите его, это может нарушить целостность данных. Всё равно удалить?`)) {
+                let arr = store.getDict(cat);
+                arr = arr.filter(i => i !== val);
+                store.setDict(cat, arr);
+                this.refreshLists();
+              }
+            } else {
+              toast(`Элемент "${val}" используется! Удаление запрещено.`, 'error');
+            }
+          } else {
+            if (await CustomDialog.confirm(`Точно удалить "${val}"?`)) {
+              let arr = store.getDict(cat);
+              arr = arr.filter(i => i !== val);
+              store.setDict(cat, arr);
+              this.refreshLists();
+            }
           }
         }
       });

@@ -34,7 +34,18 @@ header {
 }
 
 .logo { font-weight: 700; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
-.tabs { display: flex; gap: 4px; height: 100%; align-items: flex-end; }
+.tabs { 
+  display: flex; 
+  gap: 4px; 
+  height: 100%; 
+  align-items: flex-end; 
+  overflow-x: auto; 
+  overflow-y: hidden; 
+  white-space: nowrap; 
+  max-width: 50vw;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
 .tab-btn { 
   padding: 14px 18px; 
   border: none; 
@@ -200,6 +211,8 @@ main {
 }
 .matrix-scroll tr:hover td { background: rgba(15, 23, 42, 0.02); }
 .dark .matrix-scroll tr:hover td { background: rgba(248, 250, 252, 0.05); }
+.matrix-scroll tr:hover td.sticky-col { background: var(--surface) !important; }
+.dark .matrix-scroll tr:hover td.sticky-col { background: var(--surface) !important; }
 .sticky-col { 
   position: sticky; 
   left: 0; 
@@ -362,7 +375,7 @@ main {
 .inc-btn-comment { background: var(--bg); border: 1px solid var(--border); color: var(--text); }
 .inc-btn-comment:hover { border-color: var(--primary); color: var(--primary); }
 
-.drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 100vw; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -4px 0 24px rgba(0,0,0,0.1); transform: translateX(110%); transition: transform 0.28s cubic-bezier(.4,0,.2,1); z-index: 201; display: flex; flex-direction: column; overflow-y: auto; }
+.drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 100vw; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -4px 0 24px rgba(0,0,0,0.1); transform: translateX(110%); transition: transform 0.28s cubic-bezier(.4,0,.2,1); z-index: 201; display: flex; flex-direction: column; overflow: hidden; }
 .drawer.open { transform: translateX(0); }
 
 /* Drawer Layout Styling */
@@ -383,6 +396,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
 }
 
 /* Tabs */
@@ -485,6 +499,10 @@ main {
   font-size: 0.8rem;
   background: var(--surface);
   outline: none;
+}
+
+@media (max-width: 1200px) {
+  #user-info { display: none !important; }
 }
 
 /* Mobile Adaptation (Tasks tab only) */

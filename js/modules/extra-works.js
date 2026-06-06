@@ -73,7 +73,7 @@ export const ExtraWorksModule = {
         </select>
         <select class="input-ctrl" id="ew-filter-object" style="flex:1; min-width:140px;">
           <option value="">Все объекты</option>
-          ${objects.map(o => `<option value="${escapeHTML(o.name)}">${escapeHTML(o.name)}</option>`).join('')}
+          ${store.getDict('objects').map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}
         </select>
         <input class="input-ctrl" id="ew-filter-house" placeholder="Дом" value="${escapeHTML(this.filterHouse)}" style="width:80px;">
         <input class="input-ctrl" id="ew-filter-section" placeholder="Секция" value="${escapeHTML(this.filterSection)}" style="width:80px;">

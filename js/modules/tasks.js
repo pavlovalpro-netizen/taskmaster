@@ -2,6 +2,31 @@ import { store } from '../store.js';
 import { escapeHTML, linkify, toast, CustomDialog } from '../utils.js';
 import { Auth } from '../auth.js';
 
+function formatToDDMMYYYY(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+}
+
+function parseFromDDMMYYYY(dateStr) {
+  if (!dateStr) return null;
+  const clean = dateStr.trim();
+  if (!clean) return null;
+  const match = clean.match(/^(\d{2})[-./](\d{2})[-./](\d{4})$/);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1000 && year <= 9999) {
+      return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+  }
+  return null;
+}
+
 export const TasksModule = {
   currentFilter: 'active',
   currentSort: 'date-desc',
@@ -283,7 +308,8 @@ export const TasksModule = {
     }
 
     const isEngineer = Auth.userRole === 'engineer';
-    const checkboxDisabled = isEngineer ? 'disabled' : '';
+    const isPersonal = task.authorId === Auth.currentUser.uid;
+    const checkboxDisabled = (isEngineer && !isPersonal) ? 'disabled' : '';
     const reviewBadge = task.reviewRequested ? `<span class="priority-badge" style="background:var(--warning); color:#1e293b;">На проверке</span>` : '';
 
     return `
@@ -332,14 +358,14 @@ export const TasksModule = {
   },
   
   toggleTask(id, completed) {
-    if (Auth.userRole === 'engineer') {
-      toast('Только администратор может закрывать задачи', 'error');
-      this.render();
-      return;
-    }
     const tasks = store.getTasksTodo();
     const task = tasks.find(t => t.id === id);
     if (!task) return;
+    if (Auth.userRole === 'engineer' && task.authorId !== Auth.currentUser.uid) {
+      toast('Вы не можете закрывать задачи, назначенные администратором', 'error');
+      this.render();
+      return;
+    }
     task.completed = completed;
     task.reviewRequested = false;
     store.updateTaskTodo(id, task);
@@ -366,8 +392,7 @@ export const TasksModule = {
 
     const closeModal = () => { overlay.remove(); modal.remove(); this.render(); };
     overlay.onclick = closeModal;
-    modal.querySelector('.btn-close-modal').onclick = closeModal;
-    this.attachModalEvents(modal, task);
+    this.attachModalEvents(modal, task, closeModal);
   },
 
   getTaskModalHTML(task) {
@@ -430,7 +455,8 @@ export const TasksModule = {
     const reviewBadge = task.reviewRequested ? `<span class="priority-badge" style="background:var(--warning); color:#1e293b;">На проверке</span>` : '';
 
     let footerHtml = '';
-    if (Auth.userRole === 'admin') {
+    const isPersonal = task.authorId === Auth.currentUser.uid;
+    if (Auth.userRole === 'admin' || isPersonal) {
       if (task.reviewRequested) {
         footerHtml = `
           <div>
@@ -491,7 +517,7 @@ export const TasksModule = {
       </div>`;
   },
 
-  attachModalEvents(modal, task) {
+  attachModalEvents(modal, task, closeModal) {
     // Получаем assigneeId для уведомлений
     const assigneeId = task.assigneeId || null;
     const isAdminAction = Auth.userRole === 'admin';
@@ -499,8 +525,13 @@ export const TasksModule = {
     const updateTask = () => {
       store.updateTaskTodo(task.id, task);
       modal.innerHTML = this.getTaskModalHTML(task);
-      this.attachModalEvents(modal, task);
+      this.attachModalEvents(modal, task, closeModal);
     };
+
+    const closeBtn = modal.querySelector('.btn-close-modal');
+    if (closeBtn && closeModal) {
+      closeBtn.onclick = closeModal;
+    }
 
     modal.querySelector('#modal-delete-task')?.addEventListener('click', async () => {
       if (await CustomDialog.confirm('Точно удалить эту задачу?')) {
@@ -658,15 +689,35 @@ export const TasksModule = {
     });
 
     modal.querySelector('.btn-edit-task-main')?.addEventListener('click', async () => {
-      const newTitle = await CustomDialog.prompt('Новое название задачи:', task.title);
-      if (newTitle !== null && newTitle.trim() !== '') {
+      const newTitle = await CustomDialog.prompt('Новое название задачи (оставьте пустым, чтобы не менять):', task.title);
+      if (newTitle === null) return; // Отмена всего редактирования
+
+      let titleChanged = false;
+      if (newTitle.trim() !== '' && newTitle.trim() !== task.title) {
         task.title = newTitle.trim();
-        // Мы не можем сделать prompt для даты нативным путем, поэтому спросим вторым
-        const newDeadline = await CustomDialog.prompt('Новый дедлайн (в формате ГГГГ-ММ-ДД) или оставьте пустым:', task.deadline || '');
-        if (newDeadline !== null) {
-          task.deadline = newDeadline.trim() || null;
+        titleChanged = true;
+      }
+
+      const currentDDMMYYYY = formatToDDMMYYYY(task.deadline || '');
+      const newDeadline = await CustomDialog.prompt('Новый дедлайн (в формате ДД-ММ-ГГГГ) или оставьте пустым:', currentDDMMYYYY);
+
+      if (newDeadline !== null) {
+        const cleanDate = newDeadline.trim();
+        if (cleanDate === '') {
+          task.deadline = null;
+          updateTask();
+        } else {
+          const parsed = parseFromDDMMYYYY(cleanDate);
+          if (parsed) {
+            task.deadline = parsed;
+            updateTask();
+          } else {
+            toast('Неверный формат даты. Используйте ДД-ММ-ГГГГ (например, 25-12-2026)', 'error');
+            if (titleChanged) updateTask();
+          }
         }
-        updateTask();
+      } else {
+        if (titleChanged) updateTask();
       }
     });
   }

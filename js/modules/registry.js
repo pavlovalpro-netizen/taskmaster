@@ -2,6 +2,7 @@ import { store } from '../store.js';
 import { escapeHTML, CustomDialog } from '../utils.js';
 import { UI } from '../ui.js';
 import { appModules } from '../app.js';
+import { Auth } from '../auth.js';
 
 export const Registry = {
   render() {
@@ -73,14 +74,22 @@ export const Registry = {
       return false;
     });
 
-    if (hasTasks) {
-      import('../utils.js').then(({ toast }) => toast('В объекте есть начатые работы! Удаление запрещено.', 'error'));
-      return;
-    }
+    const isAdmin = Auth.userRole === 'admin';
 
-    if (await CustomDialog.confirm('Удалить этот объект из реестра?')) { 
-      store.deleteObject(id); 
-      this.render(); 
+    if (hasTasks) {
+      if (isAdmin) {
+        if (await CustomDialog.confirm('Внимание! В объекте есть начатые работы. Удаление объекта приведет к потере всей связанной статистики и прогресса. Всё равно удалить?')) {
+          store.deleteObject(id);
+          this.render();
+        }
+      } else {
+        import('../utils.js').then(({ toast }) => toast('В объекте есть начатые работы! Удаление запрещено.', 'error'));
+      }
+    } else {
+      if (await CustomDialog.confirm('Удалить этот объект из реестра?')) {
+        store.deleteObject(id);
+        this.render();
+      }
     }
   }
 };

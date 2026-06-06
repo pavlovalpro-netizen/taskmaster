@@ -81,12 +81,12 @@ export const CustomDialog = {
     });
   },
 
-  prompt(title, placeholder = '') {
+  prompt(title, defaultValue = '') {
     return new Promise((resolve) => {
       const overlay = this.createOverlay();
       const modal = this.createModal(`
         <h3 style="margin-bottom: 16px;">${escapeHTML(title)}</h3>
-        <input type="text" id="dialog-input" class="input-ctrl" placeholder="${escapeHTML(placeholder)}" style="margin-bottom: 24px;">
+        <input type="text" id="dialog-input" class="input-ctrl" value="${escapeHTML(defaultValue)}" placeholder="${escapeHTML(defaultValue)}" style="margin-bottom: 24px;">
         <div style="display:flex; gap:8px; justify-content:flex-end;">
           <button class="btn" id="dialog-cancel">Отмена</button>
           <button class="btn btn-primary" id="dialog-ok">Сохранить</button>
@@ -95,6 +95,9 @@ export const CustomDialog = {
 
       const input = modal.querySelector('#dialog-input');
       input.focus();
+      if (input.value) {
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
 
       modal.querySelector('#dialog-cancel').onclick = () => {
         this.close(overlay, modal);
