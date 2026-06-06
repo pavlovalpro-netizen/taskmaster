@@ -1,7 +1,6 @@
 import { store } from '../store.js';
 import { escapeHTML, CustomDialog } from '../utils.js';
 import { UI } from '../ui.js';
-import { appModules } from '../app.js';
 import { Auth } from '../auth.js';
 
 export const Registry = {
@@ -39,10 +38,11 @@ export const Registry = {
     const obj = store.getObjects().find(o => o.id === id);
     if (!obj) return;
     
+    const modules = window.appModules || {};
     // Передаем данные в Builder
-    if (appModules.builder) {
-      appModules.builder.groups = JSON.parse(JSON.stringify(obj.groups));
-      UI.switchTab('builder', appModules);
+    if (modules.builder) {
+      modules.builder.groups = JSON.parse(JSON.stringify(obj.groups));
+      UI.switchTab('builder', modules);
       
       // Заполняем поля и показываем воркспейс
       setTimeout(() => {
@@ -55,7 +55,7 @@ export const Registry = {
         if(bSec) bSec.value = obj.section;
         
         document.getElementById('b-workspace').style.display = 'block';
-        appModules.builder.renderGroups();
+        modules.builder.renderGroups();
         
         // Удаляем старый объект из реестра (так как он будет перезаписан новым при сохранении)
         // Но делаем это только при сохранении - логика Builder.saveObject это не учитывает.

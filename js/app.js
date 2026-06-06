@@ -21,6 +21,7 @@ export const appModules = {
   users: UsersModule,
   'extra-works': ExtraWorksModule
 };
+window.appModules = appModules;
 
 document.addEventListener('DOMContentLoaded', () => {
   UI.initTheme();

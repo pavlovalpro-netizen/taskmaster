@@ -1,7 +1,6 @@
 import { store } from '../store.js';
 import { toast, escapeHTML } from '../utils.js';
 import { UI } from '../ui.js';
-import { appModules } from '../app.js'; 
 
 export const Builder = {
   groups: [],
@@ -226,10 +225,11 @@ export const Builder = {
     document.getElementById('b-workspace').style.display = 'none';
     this.groups = [];
     
-    UI.switchTab('matrix', appModules);
-    if (appModules.matrix) {
-      appModules.matrix.activeConfigId = newConfigId;
-      setTimeout(() => appModules.matrix.loadMatrix(), 50); 
+    const modules = window.appModules || {};
+    UI.switchTab('matrix', modules);
+    if (modules.matrix) {
+      modules.matrix.activeConfigId = newConfigId;
+      setTimeout(() => modules.matrix.loadMatrix(), 50); 
     }
   }
 };

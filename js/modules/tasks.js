@@ -290,8 +290,8 @@ export const TasksModule = {
       if (u) assigneeLabel = `<span class="task-assignee-badge">👤 ${escapeHTML(u.name || u.email.split('@')[0])}</span>`;
     }
 
-    const isPersonal = task.authorId === Auth.currentUser.uid && !task.assigneeId;
-    const personalBadge = isPersonal ? `<span style="font-size: 0.72rem; color: var(--text-secondary);">🔒 Личная</span>` : '';
+    const isPersonalTask = task.authorId === Auth.currentUser.uid && !task.assigneeId;
+    const personalBadge = isPersonalTask ? `<span style="font-size: 0.72rem; color: var(--text-secondary);">🔒 Личная</span>` : '';
 
     const subtasksTotal = task.subtasks ? task.subtasks.length : 0;
     const subtasksDone = task.subtasks ? task.subtasks.filter(s => s.done).length : 0;

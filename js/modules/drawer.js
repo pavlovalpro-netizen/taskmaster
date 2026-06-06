@@ -1,6 +1,5 @@
 import { store } from '../store.js';
 import { escapeHTML, linkify, CustomDialog } from '../utils.js';
-import { appModules } from '../app.js';
 
 // Вспомогательная функция: разбор строки диапазона этажей типа "2-5, 8, 12-17"
 function parseFloorRange(input) {
@@ -33,7 +32,17 @@ export const Drawer = {
   open(configId, work, floorNum, floorObj, groupIdx, workIdx, config, workType = 'apts') {
     const key = `${configId}_${groupIdx}_${floorNum}_${workIdx}`;
     const t = store.getTask(key);
-    this.current = { key, work, floorNum, floorObj, groupIdx, workIdx, config, workType, remarks: t.remarks || [] };
+    this.current = { 
+      key, 
+      work, 
+      floorNum, 
+      floorObj, 
+      groupIdx, 
+      workIdx, 
+      config, 
+      workType, 
+      remarks: t.remarks ? t.remarks.map(r => ({ ...r })) : [] 
+    };
     
     // Строим диапазон этажей по умолчанию для группы
     const group = config.groups[groupIdx];
@@ -258,7 +267,7 @@ export const Drawer = {
     const data = store.getTask(this.current.key) || {};
     ['c1','c2','c3','c4','c5','c6','c7','c8','c9'].forEach(c => data[c] = document.getElementById(c)?.checked || false);
     ['l1','l2','l3','l4','l5','lFinal','lMain'].forEach(l => data[l] = document.getElementById(l)?.value || '');
-    data.remarks = this.current.remarks || [];
+    data.remarks = this.current.remarks ? this.current.remarks.map(r => ({ ...r })) : [];
     
     const doneArr = Array.from(document.querySelectorAll('.apt-chk:checked')).map(cb => {
       return this.current.workType === 'mop' ? cb.value : parseInt(cb.value);
@@ -321,7 +330,11 @@ export const Drawer = {
             floorText += this.current.workType === 'mop' ? ` (${fMissing} пом.)` : ` (${fMissing} кв.)`;
           }
 
-          const newTaskData = { ...data, text: floorText };
+          const newTaskData = { 
+            ...data, 
+            text: floorText, 
+            remarks: data.remarks ? data.remarks.map(r => ({ ...r })) : [] 
+          };
           if (this.current.workType === 'mop') {
             newTaskData.mopDone = fItemsDone;
           } else {
@@ -342,7 +355,8 @@ export const Drawer = {
     }
     
     this.close();
-    if (appModules.matrix) appModules.matrix.loadMatrix();
+    const modules = window.appModules || {};
+    if (modules.matrix) modules.matrix.loadMatrix();
   },
   
   async addRemark() {
