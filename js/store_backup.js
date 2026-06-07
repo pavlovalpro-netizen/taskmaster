@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js';
-import { doc, onSnapshot, setDoc, collection } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { toast } from './utils.js';
 import { Auth } from './auth.js';
 
@@ -23,7 +23,6 @@ class Store {
     };
     this.listeners = new Map();
     this.unsubscribeStore = null;
-    this.unsubscribeTasks = null;
     this.lastLogCount = 0;
     this.lastUserNotifCount = 0;
   }
@@ -38,9 +37,8 @@ class Store {
         if (!data.activityLog) data.activityLog = [];
         if (!data.userNotifications) data.userNotifications = {};
         
-        let needsSave = false;
-        
         // Миграция: добавляем mopZones всем этажам, если их нет
+        let needsSave = false;
         if (data.objects) {
           data.objects.forEach(obj => {
             if (obj.groups) {
@@ -58,30 +56,7 @@ class Store {
           });
         }
         
-        // МИГРАЦИЯ: Перенос задач в отдельную коллекцию tasksStore (обход лимита 1МБ)
-        if (data.tasks && Object.keys(data.tasks).length > 0) {
-          console.log("Migrating tasks to tasksStore to prevent 1MB limit crash...");
-          const groupedTasks = {};
-          for (const key in data.tasks) {
-            const configId = key.split('_').slice(0, 2).join('_'); // cfg_1684...
-            if (!groupedTasks[configId]) groupedTasks[configId] = {};
-            groupedTasks[configId][key] = data.tasks[key];
-          }
-          for (const configId in groupedTasks) {
-             setDoc(doc(db, "tasksStore", configId), groupedTasks[configId], { merge: true });
-          }
-          data.tasks = {};
-          needsSave = true;
-        }
-
-        // Загружаем всё кроме tasks
-        this.db.dict = data.dict || this.db.dict;
-        this.db.objects = data.objects || [];
-        this.db.tasksTodo = data.tasksTodo || [];
-        this.db.activityLog = data.activityLog || [];
-        this.db.userNotifications = data.userNotifications || {};
-        this.db.extraWorks = data.extraWorks || [];
-        
+        this.db = data;
         if (needsSave) this.saveToFirebase();
 
         this.checkNotifications();
@@ -92,25 +67,6 @@ class Store {
     }, (error) => {
       console.error("Ошибка синхронизации:", error);
       toast("Нет доступа к базе данных.", "error");
-    });
-
-    // ПОДПИСКА НА ЗАДАЧИ: Из отдельной коллекции tasksStore
-    this.unsubscribeTasks = onSnapshot(collection(db, "tasksStore"), (snapshot) => {
-      let tasksUpdated = false;
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "added" || change.type === "modified") {
-          const configTasks = change.doc.data() || {};
-          Object.assign(this.db.tasks, configTasks);
-          tasksUpdated = true;
-        }
-      });
-      if (tasksUpdated) {
-        if (this.listeners.has('tasks')) {
-          this.listeners.get('tasks').forEach(cb => cb());
-        }
-      }
-    }, (error) => {
-      console.error("Ошибка синхронизации задач:", error);
     });
   }
 
@@ -202,10 +158,7 @@ class Store {
   async saveToFirebase() {
     if (!db) return;
     try {
-      // Исключаем tasks из основного документа, так как они хранятся отдельно
-      const dataToSave = { ...this.db };
-      delete dataToSave.tasks;
-      await setDoc(doc(db, "appData", "mainStore"), dataToSave);
+      await setDoc(doc(db, "appData", "mainStore"), this.db);
     } catch (error) {
       console.error("Ошибка сохранения:", error);
       toast("Ошибка сохранения данных", "error");
@@ -225,22 +178,9 @@ class Store {
   // --- Матрица задач ---
   getTask(key) {
     if(!this.db.tasks) this.db.tasks = {};
-    return this.db.tasks[key] || { status: 's-none', text: 'Не начато', aptsDone: [], mopDone: [], l1: '', l2: '', l3: '', l4: '', lMain: '', remarks: [] };
+    return this.db.tasks[key] || { status: 's-none', text: 'Не начато', aptsDone: [], l1: '', l2: '', l3: '', l4: '', lMain: '', remarks: [] };
   }
-  
-  setTask(key, data) { 
-    if(!this.db.tasks) this.db.tasks = {}; 
-    this.db.tasks[key] = data; 
-    
-    // Сохраняем задачу в отдельный документ по configId
-    const configId = key.split('_').slice(0, 2).join('_');
-    if (!db) return;
-    setDoc(doc(db, "tasksStore", configId), { [key]: data }, { merge: true }).catch(e => {
-      console.error("Ошибка сохранения задачи:", e);
-      toast("Ошибка сохранения задачи", "error");
-    });
-  }
-  
+  setTask(key, data) { if(!this.db.tasks) this.db.tasks = {}; this.db.tasks[key] = data; this.saveToFirebase(); }
   undoLastTask() { toast("Отмена отключена в онлайн режиме", "warning"); return false; }
 
   // --- Пользователи ---
@@ -268,7 +208,7 @@ class Store {
     if (!this.db.extraWorks) this.db.extraWorks = [];
     const idx = this.db.extraWorks.findIndex(w => w.id === work.id);
     if (idx !== -1) {
-      this.db.extraWorks[idx] = work; // Обновляем
+      this.db.extraWorks[idx] = work; // Убновляем
     } else {
       this.db.extraWorks.push(work);  // Добавляем
     }
@@ -302,4 +242,3 @@ class Store {
 }
 
 export const store = new Store();
-
