@@ -174,7 +174,7 @@ export const Matrix = {
             if (t.remarks && t.remarks.length > 0) {
               const openCount = t.remarks.filter(r => r.status === 'Открыто').length;
               if (openCount > 0) {
-                remarkBadge = `<div title="Открытые замечания: ${openCount}" style="position:absolute; top:-6px; right:-6px; background:var(--danger); color:white; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2); z-index:10;">${openCount}</div>`;
+                remarkBadge = `<div style="position:absolute; top:-6px; right:-6px; background:var(--danger); color:white; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2); z-index:10;">${openCount}</div>`;
               }
             }
 

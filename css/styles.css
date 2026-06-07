@@ -503,13 +503,6 @@ main {
 
 @media (max-width: 1200px) {
   #user-info { display: none !important; }
-  .invite-text { display: none !important; }
-}
-
-@media (max-width: 768px) {
-  header { padding: 0 12px; gap: 8px; }
-  .logo { font-size: 1rem; }
-  .btn-sm { padding: 4px 8px; font-size: 0.75rem; }
 }
 
 /* Mobile Adaptation (Tasks tab only) */

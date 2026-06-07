@@ -330,14 +330,10 @@ export const Drawer = {
             floorText += this.current.workType === 'mop' ? ` (${fMissing} пом.)` : ` (${fMissing} кв.)`;
           }
 
-          // Fetch the existing task for this floor so we don't overwrite its remarks
-          const targetKey = `${this.current.config.id}_${this.current.groupIdx}_${f.num}_${this.current.workIdx}`;
-          const existingTargetTask = store.getTask(targetKey) || {};
-
           const newTaskData = { 
             ...data, 
             text: floorText, 
-            remarks: existingTargetTask.remarks ? existingTargetTask.remarks.map(r => ({ ...r })) : [] 
+            remarks: data.remarks ? data.remarks.map(r => ({ ...r })) : [] 
           };
           if (this.current.workType === 'mop') {
             newTaskData.mopDone = fItemsDone;
