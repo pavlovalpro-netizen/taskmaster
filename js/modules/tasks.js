@@ -315,8 +315,10 @@ export const TasksModule = {
     return `
     <div class="task-item compact-task ${task.completed ? 'completed' : ''}" style="cursor: pointer;">
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; width: 100%;">
-        <input type="checkbox" class="task-complete" data-id="${escapeHTML(task.id)}" ${task.completed ? 'checked' : ''} ${checkboxDisabled}>
-        <strong class="task-title" style="font-size: 1rem;">${escapeHTML(task.title)}</strong>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" class="task-complete" data-id="${escapeHTML(task.id)}" ${task.completed ? 'checked' : ''} ${checkboxDisabled}>
+          <strong class="task-title" style="font-size: 1rem;">${escapeHTML(task.title)}</strong>
+        </div>
         ${priorityBadge}${deadlineBadge}${reviewBadge}${locationLabel}${assigneeLabel}${personalBadge}
         <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
           ${task.link ? `<a href="${escapeHTML(task.link)}" target="_blank" class="task-link-badge">🔗 Ссылка</a>` : ''}

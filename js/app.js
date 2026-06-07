@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Добавляем кнопку приглашения и кнопку управления пользователями
         const inviteBtn = document.createElement('button');
         inviteBtn.className = 'btn btn-sm';
-        inviteBtn.textContent = '🔗 Пригласить инженера';
+        inviteBtn.innerHTML = '<span class="invite-icon">🔗</span><span class="invite-text"> Пригласить инженера</span>';
         inviteBtn.onclick = () => {
           const inviteUrl = window.location.origin + window.location.pathname + '?invite=true';
           navigator.clipboard.writeText(inviteUrl).then(() => {
